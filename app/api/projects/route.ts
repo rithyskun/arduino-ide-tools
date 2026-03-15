@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongoose';
 import { Project } from '@/lib/models/Project';
 import { User } from '@/lib/models/User';
@@ -40,7 +40,7 @@ export const GET = withAuth(async (req: NextRequest, ctx) => {
       Project.countDocuments(filter),
     ]);
 
-    return Response.json({
+    return NextResponse.json({
       success: true,
       projects,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
@@ -85,7 +85,7 @@ export const POST = withAuth(async (req: NextRequest, ctx) => {
       { $inc: { 'stats.projectCount': 1 } }
     ).exec();
 
-    return Response.json({ success: true, project }, { status: 201 });
+    return NextResponse.json({ success: true, project }, { status: 201 });
   } catch {
     return serverErrorResponse();
   }

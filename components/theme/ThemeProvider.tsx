@@ -24,31 +24,43 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue>({
   theme: 'system',
   resolved: 'dark',
-  setTheme: () => {},
+  setTheme: () => { },
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('system');
   const [resolved, setResolved] = useState<ResolvedTheme>('dark');
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Set hydration state
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   // Set theme + persist + update DOM
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
     saveTheme(t);
-    applyTheme(t);
+    if (isHydrated) {
+      applyTheme(t);
+    }
     setResolved(resolveTheme(t));
-  }, []);
+  }, [isHydrated]);
 
-  // Init from localStorage on mount
+  // Init from localStorage on mount (only after hydration)
   useEffect(() => {
+    if (!isHydrated) return;
+
     const saved = loadTheme();
     setThemeState(saved);
     applyTheme(saved);
     setResolved(resolveTheme(saved));
-  }, []);
+  }, [isHydrated]);
 
   // Watch system preference changes when theme === 'system'
   useEffect(() => {
+    if (!isHydrated) return;
+
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = () => {
       if (theme === 'system') {
@@ -58,7 +70,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     };
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
-  }, [theme]);
+  }, [theme, isHydrated]);
 
   return (
     <ThemeContext.Provider value={{ theme, resolved, setTheme }}>

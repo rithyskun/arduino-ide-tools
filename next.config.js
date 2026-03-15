@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Turbopack configuration
+  turbopack: {},
+  
   webpack: (config, { isServer }) => {
     // Mongoose uses Node.js-only modules — exclude from client bundle
     if (!isServer) {
@@ -15,9 +18,6 @@ const nextConfig = {
     return config;
   },
 
-  // Suppress Mongoose strictQuery deprecation warning in Next.js logs
-  // Note: serverExternalPackages is not needed in Next.js 14
-
   // Allow images from any source (avatars etc.)
   images: {
     remotePatterns: [{ protocol: 'https', hostname: '**' }],
@@ -26,7 +26,6 @@ const nextConfig = {
   // Production optimizations
   poweredByHeader: false,
   reactStrictMode: true,
-  swcMinify: true,
   
   // Environment variables for client-side access
   env: {

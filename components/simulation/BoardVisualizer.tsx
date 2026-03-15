@@ -1760,7 +1760,7 @@ function GenericBoard({ board, pinStates, simRunning }: BoardVisualizerProps) {
 }
 
 // ── Registry ──────────────────────────────────────────────────────
-type Renderer = (props: BoardVisualizerProps) => JSX.Element;
+type Renderer = (props: BoardVisualizerProps) => React.ReactElement;
 const BOARD_RENDERERS: Record<string, Renderer> = {
   'arduino-mega': MegaBoard,
   'arduino-uno': UnoBoard,

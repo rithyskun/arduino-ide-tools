@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongoose';
 import { Project } from '@/lib/models/Project';
 import { User } from '@/lib/models/User';
@@ -13,18 +13,18 @@ async function getOwnedProject(id: string, ctx: AuthContext) {
   const project = await Project.findById(id);
   if (!project)
     return {
-      error: Response.json(
+      error: NextResponse.json(
         { success: false, error: 'Project not found' },
         { status: 404 }
       ),
-    } as { error: Response };
+    } as { error: NextResponse };
   if (project.owner.toString() !== ctx.userId && ctx.role !== 'admin') {
     return {
-      error: Response.json(
+      error: NextResponse.json(
         { success: false, error: 'Forbidden' },
         { status: 403 }
       ),
-    } as { error: Response };
+    } as { error: NextResponse };
   }
   return { project } as { project: typeof project };
 }
@@ -34,11 +34,12 @@ export const GET = withAuth(
   async (
     _req: NextRequest,
     ctx: AuthContext,
-    params?: Record<string, string>
-  ): Promise<Response> => {
+    params?: Record<string, string> | Promise<{ id: string }>
+  ): Promise<NextResponse> => {
     try {
       await connectDB();
-      const result = await getOwnedProject(params?.id ?? '', ctx);
+      const resolvedParams = params instanceof Promise ? await params : params;
+      const result = await getOwnedProject(resolvedParams?.id ?? '', ctx);
       if ('error' in result) return result.error;
 
       // Touch lastOpenedAt
@@ -47,7 +48,7 @@ export const GET = withAuth(
         { lastOpenedAt: new Date() }
       ).exec();
 
-      return Response.json({ success: true, project: result.project });
+      return NextResponse.json({ success: true, project: result.project });
     } catch {
       return serverErrorResponse();
     }
@@ -59,8 +60,8 @@ export const PATCH = withAuth(
   async (
     req: NextRequest,
     ctx: AuthContext,
-    params?: Record<string, string>
-  ): Promise<Response> => {
+    params?: Record<string, string> | Promise<{ id: string }>
+  ): Promise<NextResponse> => {
     try {
       const body = await req.json();
       const parsed = UpdateProjectSchema.safeParse(body);
@@ -71,7 +72,8 @@ export const PATCH = withAuth(
         );
 
       await connectDB();
-      const result = await getOwnedProject(params?.id ?? '', ctx);
+      const resolvedParams = params instanceof Promise ? await params : params;
+      const result = await getOwnedProject(resolvedParams?.id ?? '', ctx);
       if ('error' in result) return result.error;
 
       const updates: Record<string, unknown> = { updatedAt: new Date() };
@@ -87,12 +89,12 @@ export const PATCH = withAuth(
       if (data.devices !== undefined) updates.devices = data.devices;
 
       const updated = await Project.findByIdAndUpdate(
-        params?.id,
+        resolvedParams?.id,
         { $set: updates },
         { new: true, runValidators: true }
       );
 
-      return Response.json({ success: true, project: updated });
+      return NextResponse.json({ success: true, project: updated });
     } catch {
       return serverErrorResponse();
     }
@@ -104,20 +106,21 @@ export const DELETE = withAuth(
   async (
     _req: NextRequest,
     ctx: AuthContext,
-    params?: Record<string, string>
-  ): Promise<Response> => {
+    params?: Record<string, string> | Promise<{ id: string }>
+  ): Promise<NextResponse> => {
     try {
       await connectDB();
-      const result = await getOwnedProject(params?.id ?? '', ctx);
+      const resolvedParams = params instanceof Promise ? await params : params;
+      const result = await getOwnedProject(resolvedParams?.id ?? '', ctx);
       if ('error' in result) return result.error;
 
-      await Project.findByIdAndDelete(params?.id);
+      await Project.findByIdAndDelete(resolvedParams?.id);
       User.updateOne(
         { _id: ctx.userId },
         { $inc: { 'stats.projectCount': -1 } }
       ).exec();
 
-      return Response.json({ success: true, message: 'Project deleted' });
+      return NextResponse.json({ success: true, message: 'Project deleted' });
     } catch {
       return serverErrorResponse();
     }

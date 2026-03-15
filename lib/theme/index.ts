@@ -21,7 +21,13 @@ export function resolveTheme(theme: Theme): ResolvedTheme {
 // ── Persist ───────────────────────────────────────────────────────
 export function saveTheme(theme: Theme) {
   try {
+    // Save to localStorage for client-side
     localStorage.setItem(STORAGE_KEY, theme);
+    
+    // Also save to cookie for server-side access
+    if (typeof document !== 'undefined') {
+      document.cookie = `${STORAGE_KEY}=${theme}; path=/; max-age=31536000; SameSite=Lax`;
+    }
   } catch {
     /* SSR */
   }

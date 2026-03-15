@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongoose';
 import { User } from '@/lib/models/User';
 import { withAuth } from '@/lib/auth/middleware';
@@ -14,11 +14,11 @@ export const GET = withAuth(async (_req, ctx) => {
     await connectDB();
     const user = await User.findById(ctx.userId);
     if (!user)
-      return Response.json(
+      return NextResponse.json(
         { success: false, error: 'User not found' },
         { status: 404 }
       );
-    return Response.json({ success: true, user: user.toPublicJSON() });
+    return NextResponse.json({ success: true, user: user.toPublicJSON() });
   } catch {
     return serverErrorResponse();
   }
@@ -42,7 +42,7 @@ export const PATCH = withAuth(async (req: NextRequest, ctx) => {
       await connectDB();
       const user = await User.findById(ctx.userId).select('+passwordHash');
       if (!user)
-        return Response.json(
+        return NextResponse.json(
           { success: false, error: 'User not found' },
           { status: 404 }
         );
@@ -53,7 +53,7 @@ export const PATCH = withAuth(async (req: NextRequest, ctx) => {
       user.passwordHash = parsed.data.newPassword; // pre-save will hash it
       await user.save();
 
-      return Response.json({ success: true, message: 'Password updated' });
+      return NextResponse.json({ success: true, message: 'Password updated' });
     }
 
     // Profile update
@@ -81,12 +81,12 @@ export const PATCH = withAuth(async (req: NextRequest, ctx) => {
       { new: true, runValidators: true }
     );
     if (!user)
-      return Response.json(
+      return NextResponse.json(
         { success: false, error: 'User not found' },
         { status: 404 }
       );
 
-    return Response.json({ success: true, user: user.toPublicJSON() });
+    return NextResponse.json({ success: true, user: user.toPublicJSON() });
   } catch {
     return serverErrorResponse();
   }

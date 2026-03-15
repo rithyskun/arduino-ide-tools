@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongoose';
 import { Session } from '@/lib/models/Session';
 import { withAuth, type AuthContext } from '@/lib/auth/middleware';
@@ -17,7 +17,7 @@ export const GET = withAuth(async (_req: NextRequest, ctx: AuthContext) => {
       .sort({ lastUsedAt: -1 })
       .lean();
 
-    return Response.json({ success: true, sessions });
+    return NextResponse.json({ success: true, sessions });
   } catch {
     return serverErrorResponse();
   }
@@ -31,7 +31,7 @@ export const DELETE = withAuth(async (_req: NextRequest, ctx: AuthContext) => {
       { userId: ctx.userId, isRevoked: false },
       { isRevoked: true }
     );
-    return Response.json({ success: true, message: 'All sessions revoked' });
+    return NextResponse.json({ success: true, message: 'All sessions revoked' });
   } catch {
     return serverErrorResponse();
   }

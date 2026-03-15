@@ -56,7 +56,10 @@ export default function DemoIDE() {
       if (saved) {
         const store = useIDEStore.getState();
         const p = store.projects[0];
-        if (p) p.files = saved.map((f) => ({ ...f, modified: false }));
+        if (p) {
+          // Use loadSketch method to replace all files properly
+          store.loadSketch(p.name, p.boardId, saved);
+        }
       }
     }
     setBannerDismissed(localStorage.getItem(BANNER_KEY) === '1');

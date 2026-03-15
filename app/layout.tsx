@@ -23,8 +23,8 @@ const themeScript = `
     document.documentElement.classList.toggle('dark',  resolved === 'dark');
     document.documentElement.classList.toggle('light', resolved === 'light');
   } catch(e) {
-    document.documentElement.setAttribute('data-theme', 'dark');
-    document.documentElement.classList.add('dark');
+    document.documentElement.setAttribute('data-theme', 'light');
+    document.documentElement.classList.add('light');
   }
 })();
 `;
@@ -34,6 +34,8 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Don't set theme classes on server - let client script handle it
+  // This prevents hydration mismatch
   return (
     <html lang="en" className="h-full">
       <head>

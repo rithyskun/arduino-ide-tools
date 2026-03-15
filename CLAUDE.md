@@ -4,7 +4,7 @@
 This is a Next.js-based Arduino IDE tools application with Monaco Editor integration. The project provides a web-based development environment for Arduino programming.
 
 ## Tech Stack
-- **Framework**: Next.js 14.2.0 with App Router
+- **Framework**: Next.js 16.1.6 with App Router
 - **Language**: TypeScript
 - **Styling**: TailwindCSS
 - **Editor**: Monaco Editor

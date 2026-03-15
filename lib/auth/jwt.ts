@@ -7,6 +7,8 @@
  */
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import { NextResponse } from 'next/server';
+import { addSecurityHeaders, addNoCacheHeaders } from './security';
 
 const TOKEN_TTL_SHORT = 60 * 60 * 8; // 8 hours
 const TOKEN_TTL_LONG = 60 * 60 * 24 * 30; // 30 days
@@ -57,17 +59,33 @@ export function hashJti(jti: string): string {
 
 // ── API response helpers ──────────────────────────────────────────
 export function unauthorizedResponse(message = 'Unauthorized') {
-  return Response.json({ success: false, error: message }, { status: 401 });
+  return addSecurityHeaders(
+    addNoCacheHeaders(
+      NextResponse.json({ success: false, error: message }, { status: 401 })
+    )
+  );
 }
 export function forbiddenResponse(message = 'Forbidden') {
-  return Response.json({ success: false, error: message }, { status: 403 });
+  return addSecurityHeaders(
+    addNoCacheHeaders(
+      NextResponse.json({ success: false, error: message }, { status: 403 })
+    )
+  );
 }
 export function badRequestResponse(message: string, errors?: unknown) {
-  return Response.json(
-    { success: false, error: message, errors },
-    { status: 400 }
+  return addSecurityHeaders(
+    addNoCacheHeaders(
+      NextResponse.json(
+        { success: false, error: message, errors },
+        { status: 400 }
+      )
+    )
   );
 }
 export function serverErrorResponse(message = 'Internal server error') {
-  return Response.json({ success: false, error: message }, { status: 500 });
+  return addSecurityHeaders(
+    addNoCacheHeaders(
+      NextResponse.json({ success: false, error: message }, { status: 500 })
+    )
+  );
 }
