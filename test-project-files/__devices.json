@@ -1,0 +1,34 @@
+[
+  {
+    "instanceId": "dht22-1",
+    "deviceType": "dht22",
+    "label": "DHT22 Temperature/Humidity Sensor",
+    "config": {
+      "readInterval": 2000
+    },
+    "pinMapping": {
+      "DATA": 2
+    },
+    "values": {
+      "temperature": 25.0,
+      "humidity": 60.0
+    }
+  },
+  {
+    "instanceId": "lcd1602-1",
+    "deviceType": "lcd1602",
+    "label": "16x2 LCD Display",
+    "config": {
+      "address": "0x27",
+      "backlight": true
+    },
+    "pinMapping": {
+      "SDA": 18,
+      "SCL": 19
+    },
+    "values": {
+      "line1": "IoT Sensor",
+      "line2": "Station v1.0"
+    }
+  }
+]

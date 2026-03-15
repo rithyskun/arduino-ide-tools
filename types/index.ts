@@ -87,7 +87,7 @@ export interface DeviceInstance {
 
 // ── Simulator state ──────────────────────────────────────────────
 export type SimStatus = 'idle' | 'compiling' | 'running' | 'stopped' | 'error';
-export type SimMode = 'interpreted' | 'avr';
+export type SimMode = 'interpreted' | 'avr' | 'smart';
 
 export interface SimState {
   status: SimStatus;

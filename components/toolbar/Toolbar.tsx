@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Cpu,
   Layers,
+  Brain,
 } from 'lucide-react';
 import { useIDEStore } from '@/lib/store';
 import { BOARDS } from '@/lib/boards';
@@ -232,6 +233,29 @@ export default function Toolbar({
 
       <Sep />
 
+      {/* ── Smart Simulation Toggle ─────────────────────────────── */}
+      <Btn
+        onClick={() => {
+          // Toggle smart mode - this would integrate with the smart simulator
+          const isSmart = simMode === 'smart';
+          if (isSmart) {
+            // Switch back to interpreted mode
+            // setSimMode('interpreted');
+          } else {
+            // Switch to smart mode
+            // setSimMode('smart');
+          }
+        }}
+        title="Enable/disable smart simulation with AI-powered analysis"
+      >
+        <Brain size={12} />
+        <span className="whitespace-nowrap">
+          {simMode === 'smart' ? 'Smart ON' : 'Smart OFF'}
+        </span>
+      </Btn>
+
+      <Sep />
+
       {/* ── File operations ───────────────────────────────────── */}
       <Btn onClick={() => fileInputRef.current?.click()}>
         <Upload size={12} /> Import
@@ -314,11 +338,10 @@ export default function Toolbar({
         style={pillStyle}
       >
         <span
-          className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-            simStatus === 'running' || simStatus === 'compiling'
-              ? 'animate-pulse'
-              : ''
-          }`}
+          className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${simStatus === 'running' || simStatus === 'compiling'
+            ? 'animate-pulse'
+            : ''
+            }`}
           style={dotStyle}
         />
         {simStatus.toUpperCase()}

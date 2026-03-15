@@ -10,8 +10,9 @@ import CodeEditor from '@/components/editor/CodeEditor';
 import CompileLog from '@/components/panels/CompileLog';
 import SerialMonitor from '@/components/panels/SerialMonitor';
 import SmartHardwarePanel from '@/components/panels/SmartHardwarePanel';
+import SmartAnalysisPanel from '@/components/panels/SmartAnalysisPanel';
 import SimulationPanel from '@/components/simulation/SimulationPanel';
-import DeviceCatalog from '@/components/dialogs/DeviceCatalog';
+import SmartDeviceCatalog from '@/components/dialogs/SmartDeviceCatalog';
 import BoardSelector from '@/components/dialogs/BoardSelector';
 import { useIDEStore } from '@/lib/store';
 import { useSplitter } from '@/components/editor/useSplitter';
@@ -20,7 +21,11 @@ import {
   type SensorInputs,
   type DiagnosticSnapshot,
 } from '@/lib/simulator/smart-engine';
-import type { SerialLineType } from '@/types';
+import { InterpretedSimulator } from '@/lib/simulator/engine';
+import { BasicSimulator } from '@/lib/simulator/basic-simulator';
+import { DeviceDrivenSimulator } from '@/lib/simulator/device-driven-simulator';
+import '@/lib/simulator/devices'; // Import to register all device behaviors
+import type { SerialLineType, Project } from '@/types';
 import { BOARDS } from '@/lib/boards';
 
 export default function IDE({ guestMode = false }: { guestMode?: boolean }) {
@@ -57,7 +62,7 @@ export default function IDE({ guestMode = false }: { guestMode?: boolean }) {
     analogStates,
   } = store;
 
-  const simRef = useRef<SmartSimulator | null>(null);
+  const simRef = useRef<SmartSimulator | InterpretedSimulator | BasicSimulator | DeviceDrivenSimulator | null>(null);
   const [sensorInputs, setSensorInputs] = useState<SensorInputs>({
     scaleWeightG: [500, 750, 300],
     inaVoltage: 12100,
@@ -121,6 +126,50 @@ export default function IDE({ guestMode = false }: { guestMode?: boolean }) {
     },
     [appendSerial]
   );
+
+  // ── Determine simulator type based on project content ─────────────
+  function getSimulatorType(project: Project): 'basic' | 'interpreted' | 'smart' | 'device-driven' {
+    const content = project.files.map((f: any) => f.content).join('').toLowerCase();
+
+    // Check if project has devices configured
+    const devicesFile = project.files.find((f: any) => f.name === '__devices.json');
+    if (devicesFile) {
+      try {
+        const devices = JSON.parse(devicesFile.content);
+        if (devices.length > 0) {
+          return 'device-driven'; // Use device-driven simulator when devices are configured
+        }
+      } catch (error) {
+        // Invalid devices file, fall back to other simulators
+        console.warn('Invalid devices file:', error);
+      }
+    } else {
+      // No devices file, check if user might want device-driven mode
+      // For now, fall back to other simulators
+    }
+
+    // Check for weather station specific keywords
+    const weatherKeywords = [
+      'hx711', 'scale', 'ina260', 'rain', 'rainmeter', 'pca9685', 'eeprom_store',
+      'command_handler', 'target_flow', 'stepper', 'relay'
+    ];
+
+    // Check for complex Arduino features
+    const complexKeywords = [
+      'timer1', 'interrupt', 'eeprom', 'wire.begin', 'i2c', 'spi'
+    ];
+
+    const hasWeatherFeatures = weatherKeywords.some(keyword => content.includes(keyword));
+    const hasComplexFeatures = complexKeywords.some(keyword => content.includes(keyword));
+
+    if (hasWeatherFeatures) {
+      return 'smart'; // Use smart simulator for weather station projects
+    } else if (hasComplexFeatures) {
+      return 'interpreted'; // Use interpreted simulator for complex projects
+    } else {
+      return 'basic'; // Use basic simulator for simple projects
+    }
+  }
 
   // ── Compile & Run ─────────────────────────────────────────────
   async function compileAndRun() {
@@ -233,41 +282,114 @@ export default function IDE({ guestMode = false }: { guestMode?: boolean }) {
       );
     }
 
-    // Start interpreted sim regardless (AVR binary would go here if godbolt returns ELF)
-    appendLog('Starting interpreted JS simulation…', 'step');
+    // Start appropriate simulator based on project content
+    appendLog('Starting simulation…', 'step');
     setSimMode('interpreted');
     setSimStatus('running');
 
-    const sim = new SmartSimulator({
-      onSerial: handleSerialLine,
-      onPinChange: (pin, val) => {
-        setPinState(pin, val);
-        setHwPinStates((prev) => ({ ...prev, [pin]: val }));
-      },
-      onAnalogChange: setAnalogState,
-      onMillisUpdate: setSimMillis,
-      onStop: () => {
-        setSimStatus('stopped');
-        if (diagInterval.current) {
-          clearInterval(diagInterval.current);
-          diagInterval.current = null;
-        }
-      },
-      onI2CScan: (addrs) => {
-        appendLog(
-          `I2C scan: ${addrs.length} device(s) at ${addrs.map((a) => '0x' + a.toString(16).toUpperCase()).join(', ')}`,
-          'step'
-        );
-      },
-    });
+    const simulatorType = getSimulatorType(project);
+    appendLog(`Using ${simulatorType} simulator`, 'info');
+
+    let sim: SmartSimulator | InterpretedSimulator | BasicSimulator | DeviceDrivenSimulator;
+
+    switch (simulatorType) {
+      case 'smart':
+        sim = new SmartSimulator({
+          onSerial: handleSerialLine,
+          onPinChange: (pin, val) => {
+            setPinState(pin, val);
+            setHwPinStates((prev) => ({ ...prev, [pin]: val }));
+          },
+          onAnalogChange: setAnalogState,
+          onMillisUpdate: setSimMillis,
+          onStop: () => {
+            setSimStatus('stopped');
+            if (diagInterval.current) {
+              clearInterval(diagInterval.current);
+              diagInterval.current = null;
+            }
+          },
+          onI2CScan: (addrs) => {
+            appendLog(
+              `I2C scan: ${addrs.length} device(s) at ${addrs.map((a) => '0x' + a.toString(16).toUpperCase()).join(', ')}`,
+              'step'
+            );
+          },
+        });
+        break;
+      case 'interpreted':
+        sim = new InterpretedSimulator({
+          onSerial: handleSerialLine,
+          onPinChange: (pin, val) => {
+            setPinState(pin, val);
+            setHwPinStates((prev) => ({ ...prev, [pin]: val }));
+          },
+          onAnalogChange: setAnalogState,
+          onMillisUpdate: setSimMillis,
+          onStop: () => {
+            setSimStatus('stopped');
+            if (diagInterval.current) {
+              clearInterval(diagInterval.current);
+              diagInterval.current = null;
+            }
+          },
+        });
+        break;
+      case 'device-driven':
+        sim = new DeviceDrivenSimulator(project, {
+          onSerial: handleSerialLine,
+          onPinChange: (pin, val) => {
+            setPinState(pin, val);
+            setHwPinStates((prev) => ({ ...prev, [pin]: val }));
+          },
+          onAnalogChange: setAnalogState,
+          onMillisUpdate: setSimMillis,
+          onStop: () => {
+            setSimStatus('stopped');
+            if (diagInterval.current) {
+              clearInterval(diagInterval.current);
+              diagInterval.current = null;
+            }
+          },
+        });
+        break;
+      case 'basic':
+      default:
+        sim = new BasicSimulator({
+          onSerial: handleSerialLine,
+          onPinChange: (pin, val) => {
+            setPinState(pin, val);
+            setHwPinStates((prev) => ({ ...prev, [pin]: val }));
+          },
+          onAnalogChange: setAnalogState,
+          onMillisUpdate: setSimMillis,
+          onStop: () => {
+            setSimStatus('stopped');
+            if (diagInterval.current) {
+              clearInterval(diagInterval.current);
+              diagInterval.current = null;
+            }
+          },
+        });
+        break;
+    }
     sim.setSpeed(simSpeed);
-    sim.setInputs(sensorInputs);
+    // Only set inputs for simulators that support it
+    if (sim instanceof SmartSimulator) {
+      sim.setInputs(sensorInputs);
+    } else if (sim instanceof DeviceDrivenSimulator) {
+      sim.setInputs(sensorInputs);
+    }
     simRef.current = sim;
     sim.start();
-    // Poll diagnostics every 500ms
-    diagInterval.current = setInterval(() => {
-      if (simRef.current) setDiagnostics(simRef.current.getDiagnostics());
-    }, 500);
+    // Poll diagnostics every 500ms (only for SmartSimulator)
+    if (sim instanceof SmartSimulator) {
+      diagInterval.current = setInterval(() => {
+        if (simRef.current && simRef.current instanceof SmartSimulator) {
+          setDiagnostics(simRef.current.getDiagnostics());
+        }
+      }, 500);
+    }
   }
 
   function stopSim() {
@@ -308,7 +430,11 @@ export default function IDE({ guestMode = false }: { guestMode?: boolean }) {
 
   // Push sensor input changes to running sim
   useEffect(() => {
-    simRef.current?.setInputs(sensorInputs);
+    if (simRef.current && simRef.current instanceof SmartSimulator) {
+      simRef.current.setInputs(sensorInputs);
+    } else if (simRef.current && simRef.current instanceof DeviceDrivenSimulator) {
+      simRef.current.setInputs(sensorInputs);
+    }
   }, [sensorInputs]);
 
   return (
@@ -449,7 +575,7 @@ export default function IDE({ guestMode = false }: { guestMode?: boolean }) {
               background: 'var(--bg-surface)',
             }}
           >
-            {(['simulation', 'hardware', 'serial', 'devices'] as const).map(
+            {(['simulation', 'hardware', 'analysis', 'serial', 'devices'] as const).map(
               (tab) => (
                 <button
                   key={tab}
@@ -484,6 +610,25 @@ export default function IDE({ guestMode = false }: { guestMode?: boolean }) {
                 diagnostics={diagnostics}
                 simRunning={store.simStatus === 'running'}
                 simMillis={store.simMillis}
+              />
+            </div>
+          )}
+
+          {store.activeRightTab === 'analysis' && (
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <SmartAnalysisPanel
+                project={projects.find((p) => p.id === activeProjectId)!}
+                devices={
+                  (() => {
+                    try {
+                      const project = projects.find((p) => p.id === activeProjectId);
+                      const devFile = project?.files.find((f) => f.name === '__devices.json');
+                      return devFile ? JSON.parse(devFile.content) : [];
+                    } catch {
+                      return [];
+                    }
+                  })()
+                }
               />
             </div>
           )}
@@ -535,9 +680,10 @@ export default function IDE({ guestMode = false }: { guestMode?: boolean }) {
       </div>
 
       {/* Dialogs */}
-      <DeviceCatalog
-        open={devicePanelOpen}
+      <SmartDeviceCatalog
+        isOpen={devicePanelOpen}
         onClose={() => setDevicePanelOpen(false)}
+        projectId={activeProjectId!}
       />
       <BoardSelector
         open={boardPanelOpen}
@@ -733,32 +879,31 @@ void noInterrupts(){}
 void interrupts(){}
 void delayMicroseconds(int){}
 `;
-  const headerOrder = [
-    'config.h',
-    'TimerOne.h',
-    'easyC.hpp',
-    'HX711-CUSTOM.h',
-    'Adafruit_INA260.h',
-    'DFRobot_RainfallSensor.h',
-    'stepper.h',
-    'pca_mux.h',
-    'eeprom_store.h',
-    'command_handler.h',
-  ];
-  const cppFiles = files.filter((f) => f.name.endsWith('.cpp'));
-  const inoFiles = files.filter((f) => f.name.endsWith('.ino'));
+
+  // Filter out system files and get user files
+  const userFiles = files.filter((f) => !f.name.startsWith('__'));
+  const headerFiles = userFiles.filter((f) => f.name.endsWith('.h') || f.name.endsWith('.hpp'));
+  const cppFiles = userFiles.filter((f) => f.name.endsWith('.cpp'));
+  const inoFiles = userFiles.filter((f) => f.name.endsWith('.ino'));
 
   let src = '// Bundled for avr-gcc · Arduino MEGA Simulator\n';
   src += ARDUINO_STUBS + '\n';
-  headerOrder.forEach((name) => {
-    const f = files.find((x) => x.name === name);
-    if (f) src += `\n// --- ${name} ---\n${f.content}\n`;
+
+  // Add header files first (in alphabetical order for consistency)
+  headerFiles.sort((a, b) => a.name.localeCompare(b.name));
+  headerFiles.forEach((f) => {
+    src += `\n// --- ${f.name} ---\n${f.content}\n`;
   });
+
+  // Add C++ files
   cppFiles.forEach((f) => {
     src += `\n// --- ${f.name} ---\n${f.content}\n`;
   });
+
+  // Add .ino files last (main sketch files)
   inoFiles.forEach((f) => {
     src += `\n// --- ${f.name} ---\n${f.content}\n`;
   });
+
   return src;
 }

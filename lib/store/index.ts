@@ -55,7 +55,7 @@ interface IDEState {
   // UI state
   boardPanelOpen: boolean;
   devicePanelOpen: boolean;
-  activeRightTab: 'simulation' | 'hardware' | 'serial' | 'devices';
+  activeRightTab: 'simulation' | 'hardware' | 'analysis' | 'serial' | 'devices';
 
   // Actions — projects
   createProject: (name: string, boardId: string) => void;
@@ -87,6 +87,13 @@ interface IDEState {
     pinMapping: Record<string, number>
   ) => void;
 
+  // Actions — device management (for device-driven simulator)
+  addDeviceToProject: (projectId: string, device: any) => void;
+  removeDeviceFromProject: (projectId: string, instanceId: string) => void;
+  updateDeviceInProject: (projectId: string, instanceId: string, updates: any) => void;
+  getDevicesFromProject: (projectId: string) => any[];
+  renameFile: (projectId: string, oldName: string, newName: string) => void;
+
   // Actions — board
   setBoard: (boardId: string) => void;
 
@@ -113,7 +120,7 @@ interface IDEState {
   setBoardPanelOpen: (open: boolean) => void;
   setDevicePanelOpen: (open: boolean) => void;
   setActiveRightTab: (
-    tab: 'simulation' | 'hardware' | 'serial' | 'devices'
+    tab: 'simulation' | 'hardware' | 'analysis' | 'serial' | 'devices'
   ) => void;
 }
 
@@ -427,6 +434,139 @@ export const useIDEStore = create<IDEState>()(
         });
       },
 
+      // ── Device Management ───────────────────────────────────────
+      addDeviceToProject(projectId: string, device: any) {
+        set((s) => {
+          const project = s.projects.find((p) => p.id === projectId);
+          if (!project) return;
+
+          // Ensure __devices.json file exists
+          let devicesFile = project.files.find((f) => f.name === '__devices.json');
+          if (!devicesFile) {
+            devicesFile = {
+              name: '__devices.json',
+              language: 'json',
+              modified: true,
+              readonly: false,
+              content: '[]',
+            };
+            project.files.push(devicesFile);
+          }
+
+          // Parse existing devices
+          let devices = [];
+          try {
+            devices = JSON.parse(devicesFile.content);
+          } catch {
+            devices = [];
+          }
+
+          // Add new device
+          devices.push(device);
+          devicesFile.content = JSON.stringify(devices, null, 2);
+          devicesFile.modified = true;
+          project.updatedAt = Date.now();
+        });
+      },
+
+      removeDeviceFromProject(projectId: string, instanceId: string) {
+        set((s) => {
+          const project = s.projects.find((p) => p.id === projectId);
+          if (!project) return;
+
+          const devicesFile = project.files.find((f) => f.name === '__devices.json');
+          if (!devicesFile) return;
+
+          // Parse existing devices
+          let devices = [];
+          try {
+            devices = JSON.parse(devicesFile.content);
+          } catch {
+            return;
+          }
+
+          // Remove device
+          devices = devices.filter((d: any) => d.instanceId !== instanceId);
+          devicesFile.content = JSON.stringify(devices, null, 2);
+          devicesFile.modified = true;
+          project.updatedAt = Date.now();
+        });
+      },
+
+      updateDeviceInProject(projectId: string, instanceId: string, updates: any) {
+        set((s) => {
+          const project = s.projects.find((p) => p.id === projectId);
+          if (!project) return;
+
+          const devicesFile = project.files.find((f) => f.name === '__devices.json');
+          if (!devicesFile) return;
+
+          // Parse existing devices
+          let devices = [];
+          try {
+            devices = JSON.parse(devicesFile.content);
+          } catch {
+            return;
+          }
+
+          // Update device
+          const deviceIndex = devices.findIndex((d: any) => d.instanceId === instanceId);
+          if (deviceIndex !== -1) {
+            devices[deviceIndex] = { ...devices[deviceIndex], ...updates };
+            devicesFile.content = JSON.stringify(devices, null, 2);
+            devicesFile.modified = true;
+            project.updatedAt = Date.now();
+          }
+        });
+      },
+
+      getDevicesFromProject(projectId: string) {
+        const project = get().projects.find((p) => p.id === projectId);
+        if (!project) return [];
+
+        const devicesFile = project.files.find((f) => f.name === '__devices.json');
+        if (!devicesFile) return [];
+
+        try {
+          return JSON.parse(devicesFile.content);
+        } catch {
+          return [];
+        }
+      },
+
+      // ── File Management ─────────────────────────────────────────
+      renameFile(projectId: string, oldName: string, newName: string) {
+        set((s) => {
+          const project = s.projects.find((p) => p.id === projectId);
+          if (!project) return;
+
+          const file = project.files.find((f) => f.name === oldName);
+          if (!file) return;
+
+          // Check if new name already exists
+          if (project.files.some((f) => f.name === newName)) {
+            console.warn(`File ${newName} already exists`);
+            return;
+          }
+
+          // Rename the file
+          file.name = newName;
+          file.modified = true;
+          project.updatedAt = Date.now();
+
+          // Update active file if it was renamed
+          if (s.activeFile === oldName) {
+            s.activeFile = newName;
+          }
+
+          // Update open files if it was renamed
+          const openFileIndex = s.openFiles.indexOf(oldName);
+          if (openFileIndex !== -1) {
+            s.openFiles[openFileIndex] = newName;
+          }
+        });
+      },
+
       // ── Serial ────────────────────────────────────────────────
       appendSerial(text, type) {
         set((s) => {
@@ -478,7 +618,7 @@ export const useIDEStore = create<IDEState>()(
           s.devicePanelOpen = open;
         });
       },
-      setActiveRightTab(tab: 'simulation' | 'hardware' | 'serial' | 'devices') {
+      setActiveRightTab(tab: 'simulation' | 'hardware' | 'analysis' | 'serial' | 'devices') {
         set((s) => {
           s.activeRightTab = tab;
         });

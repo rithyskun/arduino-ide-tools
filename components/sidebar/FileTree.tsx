@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef } from 'react';
-import { FilePlus, Trash2, Download } from 'lucide-react';
+import { FilePlus, Trash2, Download, Edit3, Check, X } from 'lucide-react';
 import { useIDEStore } from '@/lib/store';
 import { iconForFile, downloadText } from '@/lib/utils';
 import { cn } from '@/lib/utils';
@@ -14,12 +14,16 @@ export default function FileTree() {
     openFile,
     deleteFile,
     addFile,
+    renameFile,
   } = useIDEStore();
 
   const [newName, setNewName] = useState('');
   const [showInput, setShowInput] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [editingFile, setEditingFile] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   const project = projects.find((p) => p.id === activeProjectId);
   const files = project?.files.filter((f) => !f.name.startsWith('__')) ?? [];
@@ -44,6 +48,27 @@ export default function FileTree() {
     e.stopPropagation();
     const f = project?.files.find((x) => x.name === name);
     if (f) downloadText(f.name, f.content);
+  }
+
+  function handleStartEdit(name: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    setEditingFile(name);
+    setEditingName(name);
+    setTimeout(() => editInputRef.current?.focus(), 0);
+  }
+
+  function handleSaveEdit() {
+    const newNameTrimmed = editingName.trim();
+    if (newNameTrimmed && newNameTrimmed !== editingFile) {
+      renameFile(activeProjectId!, editingFile!, newNameTrimmed);
+    }
+    setEditingFile(null);
+    setEditingName('');
+  }
+
+  function handleCancelEdit() {
+    setEditingFile(null);
+    setEditingName('');
   }
 
   return (
@@ -96,28 +121,75 @@ export default function FileTree() {
             <span className="text-[10px] opacity-50 flex-shrink-0">
               {iconForFile(f.name)}
             </span>
-            <span className="flex-1 truncate">{f.name}</span>
-            {f.modified && (
-              <span className="text-accent-amber text-[8px]">●</span>
-            )}
-            <div className="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
-              <button
-                className="p-0.5 rounded text-fg-subtle hover:text-accent-blue"
-                onClick={(e) => handleDownload(f.name, e)}
-                title="Download"
-              >
-                <Download size={9} />
-              </button>
-              {!f.readonly && (
+
+            {editingFile === f.name ? (
+              <div className="flex-1 flex items-center gap-1">
+                <input
+                  ref={editInputRef}
+                  type="text"
+                  value={editingName}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveEdit();
+                    if (e.key === 'Escape') handleCancelEdit();
+                  }}
+                  className="flex-1 px-1 py-0 text-[11px] font-mono bg-bg-surface border border-accent-blue rounded"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <button
+                  className="p-0.5 rounded text-fg-subtle hover:text-accent-green"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSaveEdit();
+                  }}
+                  title="Save"
+                >
+                  <Check size={9} />
+                </button>
                 <button
                   className="p-0.5 rounded text-fg-subtle hover:text-accent-red"
-                  onClick={(e) => handleDelete(f.name, e)}
-                  title="Delete"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCancelEdit();
+                  }}
+                  title="Cancel"
                 >
-                  <Trash2 size={9} />
+                  <X size={9} />
                 </button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <>
+                <span className="flex-1 truncate">{f.name}</span>
+                {f.modified && (
+                  <span className="text-accent-amber text-[8px]">●</span>
+                )}
+                <div className="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
+                  <button
+                    className="p-0.5 rounded text-fg-subtle hover:text-accent-blue"
+                    onClick={(e) => handleStartEdit(f.name, e)}
+                    title="Rename"
+                  >
+                    <Edit3 size={9} />
+                  </button>
+                  <button
+                    className="p-0.5 rounded text-fg-subtle hover:text-accent-blue"
+                    onClick={(e) => handleDownload(f.name, e)}
+                    title="Download"
+                  >
+                    <Download size={9} />
+                  </button>
+                  {!f.readonly && (
+                    <button
+                      className="p-0.5 rounded text-fg-subtle hover:text-accent-red"
+                      onClick={(e) => handleDelete(f.name, e)}
+                      title="Delete"
+                    >
+                      <Trash2 size={9} />
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         ))}
       </div>

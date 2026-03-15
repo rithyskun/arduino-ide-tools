@@ -105,6 +105,10 @@ export class InterpretedSimulator {
     this.stop();
   }
 
+  setInputs(inputs: any) {
+    // Interpreted simulator doesn't use sensor inputs, but implement for compatibility
+  }
+
   private bootSequence() {
     const log = (t: string) => this.cb.onSerial(t);
     log('<Inf> Arduino starting...');

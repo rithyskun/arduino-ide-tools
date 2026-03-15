@@ -1,0 +1,154 @@
+[
+  {
+    "instanceId": "hx711-1",
+    "deviceType": "hx711",
+    "label": "Load Cell Scale 1",
+    "config": {
+      "calibrationFactor": 1000.0,
+      "offset": 0.0
+    },
+    "pinMapping": {
+      "DT": 3,
+      "SCK": 4
+    },
+    "values": {
+      "weight": 500.0,
+      "raw": 8589934
+    }
+  },
+  {
+    "instanceId": "hx711-2", 
+    "deviceType": "hx711",
+    "label": "Load Cell Scale 2",
+    "config": {
+      "calibrationFactor": 1000.0,
+      "offset": 0.0
+    },
+    "pinMapping": {
+      "DT": 5,
+      "SCK": 6
+    },
+    "values": {
+      "weight": 750.0,
+      "raw": 12884902
+    }
+  },
+  {
+    "instanceId": "hx711-3",
+    "deviceType": "hx711", 
+    "label": "Load Cell Scale 3",
+    "config": {
+      "calibrationFactor": 1000.0,
+      "offset": 0.0
+    },
+    "pinMapping": {
+      "DT": 7,
+      "SCK": 8
+    },
+    "values": {
+      "weight": 300.0,
+      "raw": 5153961
+    }
+  },
+  {
+    "instanceId": "ina260-1",
+    "deviceType": "ina260",
+    "label": "Power Monitor",
+    "config": {
+      "address": "0x40",
+      "conversionTime": 858,
+      "averagingCount": 4
+    },
+    "pinMapping": {
+      "SDA": 20,
+      "SCL": 21
+    },
+    "values": {
+      "voltage": 12100,
+      "current": 320,
+      "power": 3872
+    }
+  },
+  {
+    "instanceId": "rainmeter-1",
+    "deviceType": "rainmeter",
+    "label": "Rainfall Sensor 1",
+    "config": {
+      "tipCount": 0,
+      "calibration": 0.2794
+    },
+    "pinMapping": {
+      "TIP": 9
+    },
+    "values": {
+      "tips": 0,
+      "rainfall": 0.0
+    }
+  },
+  {
+    "instanceId": "rainmeter-2",
+    "deviceType": "rainmeter", 
+    "label": "Rainfall Sensor 2",
+    "config": {
+      "tipCount": 0,
+      "calibration": 0.2794
+    },
+    "pinMapping": {
+      "TIP": 10
+    },
+    "values": {
+      "tips": 0,
+      "rainfall": 0.0
+    }
+  },
+  {
+    "instanceId": "stepper-1",
+    "deviceType": "stepper",
+    "label": "Flow Control Stepper",
+    "config": {
+      "stepsPerRevolution": 200,
+      "maxSpeed": 1000,
+      "acceleration": 500
+    },
+    "pinMapping": {
+      "STEP": 11,
+      "DIR": 12,
+      "ENABLE": 13
+    },
+    "values": {
+      "position": 0,
+      "velocity": 0,
+      "enabled": false
+    }
+  },
+  {
+    "instanceId": "relay-1",
+    "deviceType": "relay",
+    "label": "Pump Relay 1",
+    "config": {
+      "activeLow": true,
+      "initialState": false
+    },
+    "pinMapping": {
+      "IN": 22
+    },
+    "values": {
+      "state": false
+    }
+  },
+  {
+    "instanceId": "relay-2",
+    "deviceType": "relay",
+    "label": "Pump Relay 2", 
+    "config": {
+      "activeLow": true,
+      "initialState": false
+    },
+    "pinMapping": {
+      "IN": 23
+    },
+    "values": {
+      "state": false
+    }
+  }
+]

@@ -1,0 +1,25 @@
+[
+  {
+    "instanceId": "dht22-1",
+    "deviceType": "dht22",
+    "label": "Temperature Sensor",
+    "config": {},
+    "pinMapping": {
+      "DATA": 2
+    },
+    "values": {}
+  },
+  {
+    "instanceId": "lcd1602-1",
+    "deviceType": "lcd1602",
+    "label": "LCD Display",
+    "config": {
+      "address": "0x27"
+    },
+    "pinMapping": {
+      "SDA": 18,
+      "SCL": 19
+    },
+    "values": {}
+  }
+]
