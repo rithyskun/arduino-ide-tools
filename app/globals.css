@@ -1,0 +1,443 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════
+   CSS CUSTOM PROPERTIES — theme tokens
+   Applied by ThemeProvider via data-theme="dark" | "light"
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Dark theme (default) ─────────────────────────────────────── */
+:root,
+[data-theme='dark'] {
+  --bg-base: #0d1117;
+  --bg-surface: #161b22;
+  --bg-raised: #21262d;
+  --bg-overlay: #2d333b;
+
+  --border-subtle: #30363d;
+  --border-default: #444c56;
+  --border-emphasis: #768390;
+
+  --fg-default: #e6edf3;
+  --fg-muted: #8b949e;
+  --fg-subtle: #6e7681;
+
+  --accent-green: #3fb950;
+  --accent-blue: #58a6ff;
+  --accent-amber: #e3b341;
+  --accent-red: #f85149;
+  --accent-purple: #bc8cff;
+  --accent-cyan: #39d353;
+
+  /* Semantic tints */
+  --tint-green: rgba(63, 185, 80, 0.15);
+  --tint-red: rgba(248, 81, 73, 0.15);
+  --tint-amber: rgba(227, 179, 65, 0.15);
+  --tint-blue: rgba(88, 166, 255, 0.15);
+  --tint-purple: rgba(188, 140, 255, 0.15);
+
+  /* Green border for tinted containers */
+  --border-green: rgba(63, 185, 80, 0.4);
+  --border-red: rgba(248, 81, 73, 0.4);
+  --border-amber: rgba(227, 179, 65, 0.35);
+  --border-blue: rgba(88, 166, 255, 0.35);
+
+  --scrollbar-thumb: #444c56;
+  --scrollbar-hover: #768390;
+
+  color-scheme: dark;
+}
+
+/* ── Light theme ──────────────────────────────────────────────── */
+[data-theme='light'] {
+  --bg-base: #ffffff;
+  --bg-surface: #f6f8fa;
+  --bg-raised: #eaeef2;
+  --bg-overlay: #d0d7de;
+
+  --border-subtle: #d0d7de;
+  --border-default: #afb8c1;
+  --border-emphasis: #6e7781;
+
+  --fg-default: #1f2328;
+  --fg-muted: #57606a;
+  --fg-subtle: #6e7781;
+
+  --accent-green: #1a7f37;
+  --accent-blue: #0550ae;
+  --accent-amber: #9a6700;
+  --accent-red: #cf222e;
+  --accent-purple: #6639ba;
+  --accent-cyan: #1a7f37;
+
+  --tint-green: rgba(26, 127, 55, 0.1);
+  --tint-red: rgba(207, 34, 46, 0.1);
+  --tint-amber: rgba(154, 103, 0, 0.1);
+  --tint-blue: rgba(5, 80, 174, 0.1);
+  --tint-purple: rgba(102, 57, 186, 0.1);
+
+  --border-green: rgba(26, 127, 55, 0.35);
+  --border-red: rgba(207, 34, 46, 0.35);
+  --border-amber: rgba(154, 103, 0, 0.3);
+  --border-blue: rgba(5, 80, 174, 0.3);
+
+  --scrollbar-thumb: #afb8c1;
+  --scrollbar-hover: #6e7781;
+
+  color-scheme: light;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BASE
+   ═══════════════════════════════════════════════════════════════ */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--bg-base);
+    color: var(--fg-default);
+  }
+
+  /* Smooth theme transitions — only on background and color */
+  *,
+  *::before,
+  *::after {
+    transition:
+      background-color 0.18s ease,
+      border-color 0.18s ease,
+      color 0.18s ease;
+  }
+  /* But NOT on things that should be instant */
+  input[type='range'],
+  canvas,
+  .no-transition,
+  .no-transition * {
+    transition: none !important;
+  }
+
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-hover);
+  }
+
+  /* Selection */
+  ::selection {
+    background: var(--tint-blue);
+    color: var(--fg-default);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   COMPONENTS — all use CSS variables, not hardcoded hex
+   ═══════════════════════════════════════════════════════════════ */
+@layer components {
+  /* ── Splitter handles ──────────────────────────────────────── */
+  .splitter-h {
+    @apply w-1 cursor-col-resize flex-shrink-0 relative z-10 transition-colors;
+    background-color: var(--border-subtle);
+  }
+  .splitter-h:hover,
+  .splitter-h.dragging {
+    background-color: var(--accent-blue);
+  }
+  .splitter-h::after {
+    content: '';
+    @apply absolute inset-y-0 -left-1 -right-1;
+  }
+  .splitter-v {
+    @apply h-1 cursor-row-resize flex-shrink-0 relative z-10 w-full transition-colors;
+    background-color: var(--border-subtle);
+  }
+  .splitter-v:hover,
+  .splitter-v.dragging {
+    background-color: var(--accent-blue);
+  }
+  .splitter-v::after {
+    content: '';
+    @apply absolute inset-x-0 -top-1 -bottom-1;
+  }
+
+  /* ── Serial line colours ──────────────────────────────────── */
+  .sl-inf {
+    color: var(--accent-blue);
+  }
+  .sl-err {
+    color: var(--accent-red);
+  }
+  .sl-data {
+    color: var(--accent-green);
+  }
+  .sl-raw {
+    color: var(--accent-amber);
+  }
+  .sl-cmd {
+    color: var(--fg-default);
+  }
+  .sl-sys {
+    color: var(--accent-purple);
+  }
+
+  /* ── Compile log ──────────────────────────────────────────── */
+  .cl-step {
+    color: var(--accent-purple);
+  }
+  .cl-ok {
+    color: var(--accent-green);
+  }
+  .cl-warn {
+    color: var(--accent-amber);
+  }
+  .cl-error {
+    color: var(--accent-red);
+  }
+  .cl-info {
+    color: var(--fg-muted);
+  }
+
+  /* ── Status pills ─────────────────────────────────────────── */
+  .pill-idle {
+    background-color: var(--bg-raised);
+    color: var(--fg-subtle);
+    border: 1px solid var(--border-subtle);
+  }
+  .pill-compiling {
+    background-color: var(--tint-amber);
+    color: var(--accent-amber);
+    border: 1px solid var(--border-amber);
+  }
+  .pill-running {
+    background-color: var(--tint-green);
+    color: var(--accent-green);
+    border: 1px solid var(--border-green);
+  }
+  .pill-error {
+    background-color: var(--tint-red);
+    color: var(--accent-red);
+    border: 1px solid var(--border-red);
+  }
+  .pill-stopped {
+    background-color: var(--bg-raised);
+    color: var(--fg-muted);
+    border: 1px solid var(--border-subtle);
+  }
+
+  /* ── Toolbar button ───────────────────────────────────────── */
+  .tb-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 5px;
+    border: 1px solid var(--border-default);
+    background-color: var(--bg-raised);
+    color: var(--fg-muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background-color 0.15s,
+      color 0.15s,
+      border-color 0.15s;
+  }
+  .tb-btn:hover {
+    background-color: var(--bg-overlay);
+    color: var(--fg-default);
+  }
+  .tb-btn-primary {
+    background-color: var(--tint-green);
+    color: var(--accent-green);
+    border-color: var(--border-green);
+  }
+  .tb-btn-primary:hover {
+    filter: brightness(1.1);
+  }
+  .tb-btn-danger {
+    background-color: var(--tint-red);
+    color: var(--accent-red);
+    border-color: var(--border-red);
+  }
+  .tb-btn-danger:hover {
+    filter: brightness(1.1);
+  }
+  .tb-btn-warning {
+    background-color: var(--tint-amber);
+    color: var(--accent-amber);
+    border-color: var(--border-amber);
+  }
+  .tb-btn-warning:hover {
+    filter: brightness(1.1);
+  }
+  .tb-btn:disabled,
+  .tb-btn-primary:disabled,
+  .tb-btn-danger:disabled,
+  .tb-btn-warning:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  /* ── Panel header ─────────────────────────────────────────── */
+  .panel-hdr {
+    padding: 6px 12px;
+    background-color: var(--bg-surface);
+    border-bottom: 1px solid var(--border-subtle);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--fg-subtle);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  /* ── Hardware metric cell ─────────────────────────────────── */
+  .hw-cell {
+    background-color: var(--bg-base);
+    padding: 8px;
+  }
+  .hw-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--fg-subtle);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 3px;
+  }
+  .hw-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--fg-default);
+  }
+
+  /* ── Form inputs (auth pages, modals) ─────────────────────── */
+  .input-base {
+    width: 100%;
+    background-color: var(--bg-raised);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--fg-default);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .input-base::placeholder {
+    color: var(--fg-subtle);
+  }
+  .input-base:focus {
+    border-color: var(--accent-blue);
+  }
+  .input-base.error {
+    border-color: var(--accent-red);
+  }
+
+  /* ── Card ─────────────────────────────────────────────────── */
+  .card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+  }
+  .card:hover {
+    border-color: var(--border-default);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TAILWIND-TO-CSS-VAR BRIDGE
+   Map Tailwind colour names → CSS vars so existing @apply classes
+   and inline className="bg-bg-base" usage keeps working.
+   ═══════════════════════════════════════════════════════════════ */
+@layer utilities {
+  .bg-bg-base {
+    background-color: var(--bg-base) !important;
+  }
+  .bg-bg-surface {
+    background-color: var(--bg-surface) !important;
+  }
+  .bg-bg-raised {
+    background-color: var(--bg-raised) !important;
+  }
+  .bg-bg-overlay {
+    background-color: var(--bg-overlay) !important;
+  }
+
+  .text-fg-default {
+    color: var(--fg-default) !important;
+  }
+  .text-fg-muted {
+    color: var(--fg-muted) !important;
+  }
+  .text-fg-subtle {
+    color: var(--fg-subtle) !important;
+  }
+
+  .border-border-subtle {
+    border-color: var(--border-subtle) !important;
+  }
+  .border-border-default {
+    border-color: var(--border-default) !important;
+  }
+  .border-border-emphasis {
+    border-color: var(--border-emphasis) !important;
+  }
+
+  .text-accent-green {
+    color: var(--accent-green) !important;
+  }
+  .text-accent-blue {
+    color: var(--accent-blue) !important;
+  }
+  .text-accent-amber {
+    color: var(--accent-amber) !important;
+  }
+  .text-accent-red {
+    color: var(--accent-red) !important;
+  }
+  .text-accent-purple {
+    color: var(--accent-purple) !important;
+  }
+  .text-accent-cyan {
+    color: var(--accent-cyan) !important;
+  }
+
+  .border-accent-blue {
+    border-color: var(--accent-blue) !important;
+  }
+  .border-accent-green {
+    border-color: var(--accent-green) !important;
+  }
+  .border-accent-red {
+    border-color: var(--accent-red) !important;
+  }
+  .border-accent-amber {
+    border-color: var(--accent-amber) !important;
+  }
+  .border-accent-purple {
+    border-color: var(--accent-purple) !important;
+  }
+}
