@@ -16,11 +16,30 @@ const nextConfig = {
   },
 
   // Suppress Mongoose strictQuery deprecation warning in Next.js logs
-  serverExternalPackages: ['mongoose'],
+  // Note: serverExternalPackages is not needed in Next.js 14
 
   // Allow images from any source (avatars etc.)
   images: {
     remotePatterns: [{ protocol: 'https', hostname: '**' }],
+  },
+
+  // Production optimizations
+  poweredByHeader: false,
+  reactStrictMode: true,
+  swcMinify: true,
+  
+  // Environment variables for client-side access
+  env: {
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+  },
+
+  // Compression and performance
+  compress: true,
+  
+  // Experimental features for better performance
+  experimental: {
+    optimizeCss: true,
+    optimizePackageImports: ['lucide-react', '@monaco-editor/react'],
   },
 };
 

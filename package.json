@@ -9,6 +9,8 @@
     "lint": "next lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "vercel-build": "next build",
+    "postbuild": "next-sitemap",
     "db:seed": "npx ts-node -P tsconfig.json --skip-project scripts/seed.ts"
   },
   "dependencies": {
