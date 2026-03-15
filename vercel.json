@@ -2,17 +2,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs",
-  "env": {
-    "NEXTAUTH_URL": {
-      "description": "The URL of your deployed application"
-    },
-    "NEXTAUTH_SECRET": {
-      "description": "A secret key for NextAuth.js JWT signing"
-    },
-    "MONGODB_URI": {
-      "description": "MongoDB connection string"
-    }
-  },
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 30
