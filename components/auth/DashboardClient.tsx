@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import ThemeToggle from '@/components/theme/ThemeToggle';
 import { BOARDS } from '@/lib/boards';
+import ConfirmDialog from '@/components/dialogs/ConfirmDialog';
 
 interface Project {
   _id: string;
@@ -46,6 +47,7 @@ export default function DashboardClient() {
     boardId: 'arduino-mega',
   });
   const [createError, setCreateError] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -91,9 +93,14 @@ export default function DashboardClient() {
   }
 
   async function handleDelete(id: string, name: string) {
-    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
-    await fetch(`/api/projects/${id}`, { method: 'DELETE' });
-    setProjects((p) => p.filter((x) => x._id !== id));
+    setPendingDelete({ id, name });
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    await fetch(`/api/projects/${pendingDelete.id}`, { method: 'DELETE' });
+    setProjects((p) => p.filter((x) => x._id !== pendingDelete.id));
+    setPendingDelete(null);
   }
 
   function handleOpen(id: string) {
@@ -427,6 +434,15 @@ export default function DashboardClient() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete Project"
+        description={`Delete "${pendingDelete?.name}"? This cannot be undone and all project files will be permanently removed.`}
+        confirmLabel="Delete Project"
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

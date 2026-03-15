@@ -4,6 +4,7 @@ import { FilePlus, Trash2, Download } from 'lucide-react';
 import { useIDEStore } from '@/lib/store';
 import { iconForFile, downloadText } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import ConfirmDialog from '@/components/dialogs/ConfirmDialog';
 
 export default function FileTree() {
   const {
@@ -17,6 +18,7 @@ export default function FileTree() {
 
   const [newName, setNewName] = useState('');
   const [showInput, setShowInput] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const project = projects.find((p) => p.id === activeProjectId);
@@ -35,7 +37,7 @@ export default function FileTree() {
 
   function handleDelete(name: string, e: React.MouseEvent) {
     e.stopPropagation();
-    if (confirm(`Delete ${name}?`)) deleteFile(name);
+    setPendingDelete(name);
   }
 
   function handleDownload(name: string, e: React.MouseEvent) {
@@ -142,6 +144,18 @@ export default function FileTree() {
           />
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete File"
+        description={`Delete "${pendingDelete}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (pendingDelete) deleteFile(pendingDelete);
+          setPendingDelete(null);
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }
