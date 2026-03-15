@@ -12,25 +12,32 @@ interface RateLimitStore {
 
 export class RateLimiter {
   private store: RateLimitStore = {};
-  private config: RateLimitConfig;
+  // Made public so middleware can read limits for response headers
+  public readonly config: RateLimitConfig;
 
   constructor(config: RateLimitConfig = { windowMs: 60000, maxRequests: 10 }) {
     this.config = config;
-    this.cleanupExpired();
+    this.startCleanup();
   }
 
-  private cleanupExpired(): void {
-    setInterval(() => {
+  private startCleanup(): void {
+    // Use a WeakRef-safe interval that won't prevent GC
+    const cleanup = () => {
       const now = Date.now();
-      Object.keys(this.store).forEach((key) => {
+      for (const key of Object.keys(this.store)) {
         if (this.store[key].resetTime < now) {
           delete this.store[key];
         }
-      });
-    }, this.config.windowMs);
+      }
+    };
+    setInterval(cleanup, this.config.windowMs);
   }
 
-  check(identifier: string): { allowed: boolean; remaining: number; resetTime: number } {
+  check(identifier: string): {
+    allowed: boolean;
+    remaining: number;
+    resetTime: number;
+  } {
     const now = Date.now();
     const record = this.store[identifier];
 
@@ -65,35 +72,42 @@ export class RateLimiter {
   reset(identifier: string): void {
     delete this.store[identifier];
   }
+
+  getStats(): { totalKeys: number; config: RateLimitConfig } {
+    return {
+      totalKeys: Object.keys(this.store).length,
+      config: this.config,
+    };
+  }
 }
 
+// Global rate limiters — singleton instances shared across requests
 export const globalRateLimiter = new RateLimiter({
-  windowMs: 60000,
+  windowMs: 60_000,
   maxRequests: 100,
 });
 
+export const authRateLimiter = new RateLimiter({
+  windowMs: 15 * 60_000, // 15 minutes
+  maxRequests: 5,         // 5 login attempts per 15 min per IP
+});
+
+export const projectRateLimiter = new RateLimiter({
+  windowMs: 60_000,
+  maxRequests: 30,
+});
+
+export const registrationRateLimiter = new RateLimiter({
+  windowMs: 60 * 60_000, // 1 hour
+  maxRequests: 3,         // 3 registrations per hour per IP
+});
+
 export const webhookRateLimiter = new RateLimiter({
-  windowMs: 60000,
+  windowMs: 60_000,
   maxRequests: 50,
 });
 
 export const emailRateLimiter = new RateLimiter({
-  windowMs: 60000,
+  windowMs: 60_000,
   maxRequests: 20,
-});
-
-// API-specific rate limiters
-export const authRateLimiter = new RateLimiter({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 5, // 5 login attempts per 15 minutes
-});
-
-export const projectRateLimiter = new RateLimiter({
-  windowMs: 60000, // 1 minute
-  maxRequests: 30, // 30 project operations per minute
-});
-
-export const registrationRateLimiter = new RateLimiter({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  maxRequests: 3, // 3 registrations per hour per IP
 });

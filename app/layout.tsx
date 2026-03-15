@@ -37,7 +37,7 @@ export default function RootLayout({
   // Don't set theme classes on server - let client script handle it
   // This prevents hydration mismatch
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
         {/* Run before page paint — prevents white flash on dark theme */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />

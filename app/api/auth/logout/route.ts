@@ -1,14 +1,14 @@
 /**
  * POST /api/auth/logout
  *
- * Thin wrapper — NextAuth's signOut() handles cookie clearing on the client.
- * This endpoint exists for server-side or programmatic logout calls.
- * We also optionally revoke DB sessions here for full invalidation.
+ * Revokes all active DB sessions for the current user and signals
+ * the client to clear NextAuth cookies via signOut().
  */
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { connectDB } from '@/lib/db/mongoose';
 import { Session } from '@/lib/models/Session';
+import { addNoCacheHeaders, addSecurityHeaders } from '@/lib/auth/security';
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,15 +19,38 @@ export async function POST(req: NextRequest) {
 
     if (token?.sub) {
       await connectDB();
-      // Revoke all active DB sessions for this user (best-effort)
-      await Session.updateMany(
+      // Revoke all active DB sessions for this user
+      const result = await Session.updateMany(
         { userId: token.sub, isRevoked: false },
-        { isRevoked: true }
+        { $set: { isRevoked: true, lastUsedAt: new Date() } }
+      );
+      console.info(
+        `[logout] Revoked ${result.modifiedCount} session(s) for user ${token.sub}`
       );
     }
-  } catch {
-    // best-effort — always return success so the client can proceed
+  } catch (err) {
+    // Best-effort — always return success so the client can proceed with
+    // clearing cookies even if DB revocation fails
+    console.error('[logout] Session revocation error:', err);
   }
 
-  return Response.json({ success: true });
+  // Instruct the browser to clear cookies immediately
+  const response = NextResponse.json({ success: true });
+  addSecurityHeaders(addNoCacheHeaders(response));
+
+  // Expire NextAuth session cookie
+  const cookieName =
+    process.env.NODE_ENV === 'production'
+      ? '__Secure-next-auth.session-token'
+      : 'next-auth.session-token';
+
+  response.cookies.set(cookieName, '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 0, // delete immediately
+  });
+
+  return response;
 }

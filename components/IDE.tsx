@@ -27,7 +27,7 @@ export default function IDE({ guestMode = false }: { guestMode?: boolean }) {
   const store = useIDEStore();
   const { data: session } = useSession();
   const router = useRouter();
-  const { saveNow } = useProjectSync();
+  const { saveNow } = useProjectSync({ guestMode });
   const hasUnsaved =
     store.projects
       .find((p) => p.id === store.activeProjectId)

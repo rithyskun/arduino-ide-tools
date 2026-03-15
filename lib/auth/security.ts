@@ -21,15 +21,17 @@ export function addSecurityHeaders(response: NextResponse): NextResponse {
   const isDevelopment = process.env.NODE_ENV === 'development';
   const csp = [
     "default-src 'none';",
-    // Allow inline scripts and eval in development, restrict in production
-    isDevelopment 
-      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval';"
-      : "script-src 'self';",
-    "connect-src 'self' ws: wss:;", // Allow WebSocket connections
+    // Allow inline scripts and eval; permit jsdelivr CDN for Monaco Editor loader
+    isDevelopment
+      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;"
+      : "script-src 'self' 'unsafe-eval' https://cdn.jsdelivr.net;",
+    // Monaco web workers run as blob: URLs
+    "worker-src 'self' blob:;",
+    "connect-src 'self' ws: wss: https://cdn.jsdelivr.net;",
     "img-src 'self' data: https:;",
     // Allow Google Fonts and inline styles
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;",
-    "font-src 'self' https://fonts.gstatic.com;",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net;",
+    "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net;",
     "frame-ancestors 'none';",
     "base-uri 'self';",
     "form-action 'self';",

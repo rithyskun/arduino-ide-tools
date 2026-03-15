@@ -1,11 +1,19 @@
 'use client';
-import { useRef, useEffect } from 'react';
-import Editor, { useMonaco } from '@monaco-editor/react';
+import { useRef, useEffect, useCallback } from 'react';
+import Editor, { useMonaco, loader } from '@monaco-editor/react';
 import { useTheme } from '@/components/theme/ThemeProvider';
-import type { editor } from 'monaco-editor';
+import type { editor as MonacoEditor } from 'monaco-editor';
 import { useIDEStore } from '@/lib/store';
 import { X } from 'lucide-react';
 import { iconForFile, cn } from '@/lib/utils';
+
+loader.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs' } });
+
+const LANG_MAP: Record<string, string> = {
+  cpp: 'cpp',
+  json: 'json',
+  plaintext: 'plaintext',
+};
 
 export default function CodeEditor() {
   const {
@@ -19,24 +27,19 @@ export default function CodeEditor() {
     markFileSaved,
   } = useIDEStore();
 
-  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
+  // Map of "projectId/fileName" → ITextModel so models are stable across file switches
+  const modelsRef = useRef<Map<string, MonacoEditor.ITextModel>>(new Map());
   const monaco = useMonaco();
   const { resolved } = useTheme();
 
   const project = projects.find((p) => p.id === activeProjectId);
   const currentFile = project?.files.find((f) => f.name === activeFile);
 
-  // Define Arduino dark theme once Monaco loads
+  // ── Define themes & autocomplete once Monaco is ready ────────────
   useEffect(() => {
     if (!monaco) return;
-    // Sync Monaco editor theme with app theme
-    if (resolved === 'light') {
-      monaco.editor.setTheme('arduino-light');
-    } else {
-      monaco.editor.setTheme('arduino-dark');
-    }
 
-    // ── Light theme ──────────────────────────────────────────
     monaco.editor.defineTheme('arduino-light', {
       base: 'vs',
       inherit: true,
@@ -66,7 +69,6 @@ export default function CodeEditor() {
       },
     });
 
-    // ── Dark theme ───────────────────────────────────────────
     monaco.editor.defineTheme('arduino-dark', {
       base: 'vs-dark',
       inherit: true,
@@ -96,9 +98,9 @@ export default function CodeEditor() {
         'dropdown.background': '#161b22',
       },
     });
-    monaco.editor.setTheme('arduino-dark');
 
-    // Arduino-specific autocomplete
+    monaco.editor.setTheme(resolved === 'light' ? 'arduino-light' : 'arduino-dark');
+
     monaco.languages.registerCompletionItemProvider('cpp', {
       provideCompletionItems(model, position) {
         const word = model.getWordUntilPosition(position);
@@ -109,57 +111,19 @@ export default function CodeEditor() {
           endColumn: word.endColumn,
         };
         const keywords = [
-          'Serial',
-          'Serial.begin',
-          'Serial.print',
-          'Serial.println',
-          'Serial.available',
-          'Serial.read',
-          'Serial.readStringUntil',
-          'pinMode',
-          'digitalWrite',
-          'digitalRead',
-          'analogRead',
-          'analogWrite',
-          'delay',
-          'delayMicroseconds',
-          'millis',
-          'micros',
-          'Wire',
-          'Wire.begin',
-          'Wire.beginTransmission',
-          'Wire.endTransmission',
-          'Wire.write',
-          'Wire.requestFrom',
-          'Wire.read',
-          'Wire.setClock',
-          'INPUT',
-          'OUTPUT',
-          'INPUT_PULLUP',
-          'HIGH',
-          'LOW',
-          'uint8_t',
-          'uint16_t',
-          'uint32_t',
-          'int8_t',
-          'int16_t',
-          'int32_t',
-          'unsigned long',
-          'boolean',
-          'byte',
-          'String',
-          'void setup',
-          'void loop',
-          'Timer1.initialize',
-          'Timer1.attachInterrupt',
-          'Timer1.start',
-          'Timer1.stop',
-          'noInterrupts',
-          'interrupts',
-          'EEPROM.read',
-          'EEPROM.write',
-          'EEPROM.put',
-          'EEPROM.get',
+          'Serial', 'Serial.begin', 'Serial.print', 'Serial.println',
+          'Serial.available', 'Serial.read', 'Serial.readStringUntil',
+          'pinMode', 'digitalWrite', 'digitalRead', 'analogRead', 'analogWrite',
+          'delay', 'delayMicroseconds', 'millis', 'micros',
+          'Wire', 'Wire.begin', 'Wire.beginTransmission', 'Wire.endTransmission',
+          'Wire.write', 'Wire.requestFrom', 'Wire.read', 'Wire.setClock',
+          'INPUT', 'OUTPUT', 'INPUT_PULLUP', 'HIGH', 'LOW',
+          'uint8_t', 'uint16_t', 'uint32_t', 'int8_t', 'int16_t', 'int32_t',
+          'unsigned long', 'boolean', 'byte', 'String',
+          'void setup', 'void loop',
+          'Timer1.initialize', 'Timer1.attachInterrupt', 'Timer1.start', 'Timer1.stop',
+          'noInterrupts', 'interrupts',
+          'EEPROM.read', 'EEPROM.write', 'EEPROM.put', 'EEPROM.get',
         ];
         return {
           suggestions: keywords.map((kw) => ({
@@ -171,18 +135,101 @@ export default function CodeEditor() {
         };
       },
     });
+  }, [monaco]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Sync theme changes without re-creating models ─────────────────
+  useEffect(() => {
+    if (!monaco) return;
+    monaco.editor.setTheme(resolved === 'light' ? 'arduino-light' : 'arduino-dark');
   }, [monaco, resolved]);
 
-  function handleEditorMount(ed: editor.IStandaloneCodeEditor) {
-    editorRef.current = ed;
-    // Ctrl+S to save/download current file
-    ed.addCommand(monaco?.KeyMod.CtrlCmd! | monaco?.KeyCode.KeyS!, () => {
-      if (activeFile) markFileSaved(activeFile);
-    });
-  }
+  // ── Get-or-create a stable ITextModel for a given file ───────────
+  const getOrCreateModel = useCallback(
+    (fileName: string, content: string, language: string): MonacoEditor.ITextModel | null => {
+      if (!monaco) return null;
+      const key = `${activeProjectId}/${fileName}`;
+      const existing = modelsRef.current.get(key);
+      if (existing && !existing.isDisposed()) {
+        return existing;
+      }
+      const uri = monaco.Uri.parse(`file:///${activeProjectId}/${fileName}`);
+      const existingByUri = monaco.editor.getModel(uri);
+      if (existingByUri && !existingByUri.isDisposed()) {
+        modelsRef.current.set(key, existingByUri);
+        return existingByUri;
+      }
+      const model = monaco.editor.createModel(
+        content,
+        LANG_MAP[language] ?? 'plaintext',
+        uri
+      );
+      modelsRef.current.set(key, model);
+      return model;
+    },
+    [monaco, activeProjectId]
+  );
 
-  function handleChange(value: string | undefined) {
-    if (activeFile && value !== undefined) updateFileContent(activeFile, value);
+  // ── Swap model when active file changes ───────────────────────────
+  useEffect(() => {
+    const ed = editorRef.current;
+    if (!ed || !monaco || !currentFile) return;
+
+    const model = getOrCreateModel(currentFile.name, currentFile.content, currentFile.language);
+    if (!model) return;
+
+    if (ed.getModel() !== model) {
+      ed.setModel(model);
+    }
+    ed.updateOptions({ readOnly: currentFile.readonly ?? false });
+  }, [monaco, activeFile, activeProjectId, currentFile, getOrCreateModel]);
+
+  // ── Sync external store changes into the model (e.g. loadSketch) ──
+  useEffect(() => {
+    if (!currentFile || !monaco) return;
+    const key = `${activeProjectId}/${currentFile.name}`;
+    const model = modelsRef.current.get(key);
+    if (!model || model.isDisposed()) return;
+    const modelValue = model.getValue();
+    if (modelValue !== currentFile.content) {
+      model.pushEditOperations(
+        [],
+        [{ range: model.getFullModelRange(), text: currentFile.content }],
+        () => null
+      );
+    }
+  }, [monaco, currentFile, activeProjectId]);
+
+  // ── Dispose stale models when project changes ─────────────────────
+  useEffect(() => {
+    return () => {
+      modelsRef.current.forEach((model) => {
+        if (!model.isDisposed()) model.dispose();
+      });
+      modelsRef.current.clear();
+    };
+  }, [activeProjectId]);
+
+  function handleEditorMount(ed: MonacoEditor.IStandaloneCodeEditor) {
+    editorRef.current = ed;
+
+    ed.addCommand(monaco?.KeyMod.CtrlCmd! | monaco?.KeyCode.KeyS!, () => {
+      const file = useIDEStore.getState().activeFile;
+      if (file) markFileSaved(file);
+    });
+
+    // Set initial model
+    if (currentFile) {
+      const model = getOrCreateModel(currentFile.name, currentFile.content, currentFile.language);
+      if (model) ed.setModel(model);
+      ed.updateOptions({ readOnly: currentFile.readonly ?? false });
+    }
+
+    ed.onDidChangeModelContent(() => {
+      const activeFileName = useIDEStore.getState().activeFile;
+      if (activeFileName) {
+        updateFileContent(activeFileName, ed.getValue());
+      }
+    });
   }
 
   const tabFiles = openFiles
@@ -208,9 +255,7 @@ export default function CodeEditor() {
                     : 'text-fg-muted hover:text-fg-default hover:bg-bg-raised border-t-transparent'
                 )}
               >
-                <span className="opacity-50 text-[10px]">
-                  {iconForFile(f.name)}
-                </span>
+                <span className="opacity-50 text-[10px]">{iconForFile(f.name)}</span>
                 <span>{f.name}</span>
                 {f.modified && (
                   <span className="text-accent-amber text-[9px]">●</span>
@@ -229,15 +274,12 @@ export default function CodeEditor() {
         )}
       </div>
 
-      {/* Monaco editor */}
+      {/* Monaco editor — rendered once, model is swapped on file switch */}
       <div className="flex-1 min-h-0">
         {currentFile ? (
           <Editor
             height="100%"
-            language={currentFile.language}
-            value={currentFile.content}
             theme={resolved === 'light' ? 'arduino-light' : 'arduino-dark'}
-            onChange={handleChange}
             onMount={handleEditorMount}
             options={{
               fontSize: 13,
@@ -252,7 +294,6 @@ export default function CodeEditor() {
               renderWhitespace: 'selection',
               bracketPairColorization: { enabled: true },
               padding: { top: 8 },
-              readOnly: currentFile.readonly,
               cursorBlinking: 'smooth',
               smoothScrolling: true,
               suggest: { showKeywords: true },

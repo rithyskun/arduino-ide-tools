@@ -1,11 +1,6 @@
 /**
  * API route auth middleware — reads the NextAuth session token
  * (next-auth.session-token cookie, signed with NEXTAUTH_SECRET).
- *
- * This replaces the old approach that looked for a separate
- * arduino_ide_token cookie signed with JWT_SECRET — those two
- * tokens were never in sync, causing "Session expired or revoked"
- * on every request after login.
  */
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
@@ -13,9 +8,10 @@ import { getToken } from 'next-auth/jwt';
 import { connectDB } from '@/lib/db/mongoose';
 import { User, type IUser } from '@/lib/models/User';
 import { addSecurityHeaders, addNoCacheHeaders } from './security';
-import { createRateLimitMiddleware, withAuthRateLimit } from './rate-limit-middleware';
+import {
+  createRateLimitMiddleware,
+} from './rate-limit-middleware';
 import { globalRateLimiter } from './rate-limit';
-import { logger } from '@/lib/logger';
 
 export interface AuthContext {
   userId: string;
@@ -25,24 +21,28 @@ export interface AuthContext {
   user?: IUser;
 }
 
-// ── Core ─────────────────────────────────────────────────────────
+function getClientIp(req: NextRequest): string {
+  const forwarded = req.headers.get('x-forwarded-for');
+  const realIp = req.headers.get('x-real-ip');
+  return forwarded?.split(',')[0]?.trim() || realIp || 'unknown';
+}
+
+const globalRateLimit = createRateLimitMiddleware({
+  limiter: globalRateLimiter,
+  keyGenerator: (req) => `api:${getClientIp(req)}`,
+});
+
+// ── Core auth check ───────────────────────────────────────────────
 export async function authenticate(
   req: NextRequest,
   options: { loadUser?: boolean } = {}
 ): Promise<{ ctx: AuthContext } | { error: NextResponse }> {
-  // getToken() reads next-auth.session-token (or __Secure- in prod)
-  // and verifies it with NEXTAUTH_SECRET — no separate cookie needed
   const token = await getToken({
     req,
     secret: process.env.NEXTAUTH_SECRET!,
   });
 
-  if (!token || !token.sub) {
-    await logger.warn('Authentication failed - no token', {
-      ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
-      userAgent: req.headers.get('user-agent'),
-    });
-    
+  if (!token?.sub) {
     return {
       error: addSecurityHeaders(
         addNoCacheHeaders(
@@ -66,12 +66,6 @@ export async function authenticate(
     await connectDB();
     const user = await User.findById(ctx.userId);
     if (!user || !user.isActive) {
-      await logger.warn('Authentication failed - user not found or disabled', {
-        userId: ctx.userId,
-        ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
-        userAgent: req.headers.get('user-agent'),
-      });
-      
       return {
         error: addSecurityHeaders(
           addNoCacheHeaders(
@@ -83,16 +77,8 @@ export async function authenticate(
         ),
       };
     }
-
-    await logger.info('Authentication successful', {
-      userId: ctx.userId,
-      username: ctx.username,
-      role: ctx.role,
-      ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
-    });
-
     ctx.user = user;
-    // Touch last-active non-blocking
+    // Touch last-active — fire and forget
     User.updateOne(
       { _id: user._id },
       { 'stats.lastActiveAt': new Date() }
@@ -102,63 +88,39 @@ export async function authenticate(
   return { ctx };
 }
 
-// ── Convenience wrappers ──────────────────────────────────────────
+// ── Route handler type ────────────────────────────────────────────
 type RouteHandler = (
   req: NextRequest,
   ctx: AuthContext,
-  params?: Record<string, string> | Promise<any>
+  params?: Promise<Record<string, string>>
 ) => Promise<NextResponse>;
 
+// ── withAuth wrapper ──────────────────────────────────────────────
 export function withAuth(handler: RouteHandler) {
   return async (
     req: NextRequest,
-    context?: { params?: Record<string, string> | Promise<any> }
+    context: { params: Promise<Record<string, string>> } = { params: Promise.resolve({}) }
   ) => {
-    // Apply rate limiting first
-    const rateLimitMiddleware = createRateLimitMiddleware({
-      limiter: globalRateLimiter,
-      keyGenerator: (req) => {
-        const forwarded = req.headers.get('x-forwarded-for');
-        const realIp = req.headers.get('x-real-ip');
-        const ip = forwarded?.split(',')[0] || realIp || 'unknown';
-        return `api:${ip}`;
-      }
-    });
-
-    return rateLimitMiddleware(req, async () => {
+    return globalRateLimit(req, async () => {
       const result = await authenticate(req);
       if ('error' in result) return result.error;
-      
-      // Handle both old format and new Next.js 16 format
-      const params = context?.params;
-      return handler(req, result.ctx, params);
+
+      return handler(req, result.ctx, context.params);
     });
   };
 }
 
+// ── withAuthAndUser wrapper (also loads the User document) ────────
 export function withAuthAndUser(handler: RouteHandler) {
   return async (
     req: NextRequest,
-    context?: { params?: Record<string, string> | Promise<any> }
+    context: { params: Promise<Record<string, string>> } = { params: Promise.resolve({}) }
   ) => {
-    // Apply rate limiting first
-    const rateLimitMiddleware = createRateLimitMiddleware({
-      limiter: globalRateLimiter,
-      keyGenerator: (req) => {
-        const forwarded = req.headers.get('x-forwarded-for');
-        const realIp = req.headers.get('x-real-ip');
-        const ip = forwarded?.split(',')[0] || realIp || 'unknown';
-        return `api:${ip}`;
-      }
-    });
-
-    return rateLimitMiddleware(req, async () => {
+    return globalRateLimit(req, async () => {
       const result = await authenticate(req, { loadUser: true });
       if ('error' in result) return result.error;
-      
-      // Handle both old format and new Next.js 16 format
-      const params = context?.params;
-      return handler(req, result.ctx, params);
+
+      return handler(req, result.ctx, context.params);
     });
   };
 }

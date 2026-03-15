@@ -6,18 +6,26 @@ import { withAuth, type AuthContext } from '@/lib/auth/middleware';
 import { UpdateProjectSchema } from '@/lib/validations/schemas';
 import { badRequestResponse, serverErrorResponse } from '@/lib/auth/jwt';
 
-type Params = { id: string };
-
-// ── Ownership guard ──────────────────────────────────────────────
+// ── Ownership guard ───────────────────────────────────────────────
 async function getOwnedProject(id: string, ctx: AuthContext) {
+  if (!id || id.length !== 24) {
+    return {
+      error: NextResponse.json(
+        { success: false, error: 'Invalid project ID' },
+        { status: 400 }
+      ),
+    } as { error: NextResponse };
+  }
+
   const project = await Project.findById(id);
-  if (!project)
+  if (!project) {
     return {
       error: NextResponse.json(
         { success: false, error: 'Project not found' },
         { status: 404 }
       ),
     } as { error: NextResponse };
+  }
   if (project.owner.toString() !== ctx.userId && ctx.role !== 'admin') {
     return {
       error: NextResponse.json(
@@ -29,20 +37,28 @@ async function getOwnedProject(id: string, ctx: AuthContext) {
   return { project } as { project: typeof project };
 }
 
+async function resolveId(
+  params?: Promise<Record<string, string>>
+): Promise<string> {
+  if (!params) return '';
+  const resolved = await params;
+  return resolved.id ?? '';
+}
+
 // GET /api/projects/[id] — full project with files
 export const GET = withAuth(
   async (
     _req: NextRequest,
     ctx: AuthContext,
-    params?: Record<string, string> | Promise<{ id: string }>
+    params?: Promise<Record<string, string>>
   ): Promise<NextResponse> => {
     try {
       await connectDB();
-      const resolvedParams = params instanceof Promise ? await params : params;
-      const result = await getOwnedProject(resolvedParams?.id ?? '', ctx);
+      const id = await resolveId(params);
+      const result = await getOwnedProject(id, ctx);
       if ('error' in result) return result.error;
 
-      // Touch lastOpenedAt
+      // Fire-and-forget: update lastOpenedAt
       Project.updateOne(
         { _id: result.project._id },
         { lastOpenedAt: new Date() }
@@ -60,28 +76,28 @@ export const PATCH = withAuth(
   async (
     req: NextRequest,
     ctx: AuthContext,
-    params?: Record<string, string> | Promise<{ id: string }>
+    params?: Promise<Record<string, string>>
   ): Promise<NextResponse> => {
     try {
       const body = await req.json();
       const parsed = UpdateProjectSchema.safeParse(body);
-      if (!parsed.success)
+      if (!parsed.success) {
         return badRequestResponse(
           'Validation failed',
           parsed.error.flatten().fieldErrors
         );
+      }
 
       await connectDB();
-      const resolvedParams = params instanceof Promise ? await params : params;
-      const result = await getOwnedProject(resolvedParams?.id ?? '', ctx);
+      const id = await resolveId(params);
+      const result = await getOwnedProject(id, ctx);
       if ('error' in result) return result.error;
 
       const updates: Record<string, unknown> = { updatedAt: new Date() };
       const data = parsed.data;
 
       if (data.name !== undefined) updates.name = data.name;
-      if (data.description !== undefined)
-        updates.description = data.description;
+      if (data.description !== undefined) updates.description = data.description;
       if (data.boardId !== undefined) updates.boardId = data.boardId;
       if (data.isPublic !== undefined) updates.isPublic = data.isPublic;
       if (data.tags !== undefined) updates.tags = data.tags;
@@ -89,13 +105,14 @@ export const PATCH = withAuth(
       if (data.devices !== undefined) updates.devices = data.devices;
 
       const updated = await Project.findByIdAndUpdate(
-        resolvedParams?.id,
+        id,
         { $set: updates },
         { new: true, runValidators: true }
       );
 
       return NextResponse.json({ success: true, project: updated });
-    } catch {
+    } catch (err) {
+      console.error('[PATCH /api/projects/:id]', err);
       return serverErrorResponse();
     }
   }
@@ -106,15 +123,17 @@ export const DELETE = withAuth(
   async (
     _req: NextRequest,
     ctx: AuthContext,
-    params?: Record<string, string> | Promise<{ id: string }>
+    params?: Promise<Record<string, string>>
   ): Promise<NextResponse> => {
     try {
       await connectDB();
-      const resolvedParams = params instanceof Promise ? await params : params;
-      const result = await getOwnedProject(resolvedParams?.id ?? '', ctx);
+      const id = await resolveId(params);
+      const result = await getOwnedProject(id, ctx);
       if ('error' in result) return result.error;
 
-      await Project.findByIdAndDelete(resolvedParams?.id);
+      await Project.findByIdAndDelete(id);
+
+      // Fire-and-forget: decrement project count
       User.updateOne(
         { _id: ctx.userId },
         { $inc: { 'stats.projectCount': -1 } }
