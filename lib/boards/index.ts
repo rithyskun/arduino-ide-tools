@@ -26,7 +26,7 @@ export const BOARDS: Board[] = [
       ...Array.from({ length: 54 }, (_, i) => ({
         number: i,
         label: `D${i}`,
-        type: i < 14 ? 'digital' : ('analog' as const),
+        type: i < 14 ? ('digital' as const) : ('analog' as const),
       })),
       ...Array.from({ length: 16 }, (_, i) => ({
         number: 54 + i,
@@ -53,7 +53,7 @@ export const BOARDS: Board[] = [
       ...Array.from({ length: 14 }, (_, i) => ({
         number: i,
         label: `D${i}`,
-        type: i < 14 ? 'digital' : ('analog' as const),
+        type: ('digital' as const),
       })),
       ...Array.from({ length: 6 }, (_, i) => ({
         number: 14 + i,

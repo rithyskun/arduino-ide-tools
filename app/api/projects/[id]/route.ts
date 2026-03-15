@@ -17,16 +17,16 @@ async function getOwnedProject(id: string, ctx: AuthContext) {
         { success: false, error: 'Project not found' },
         { status: 404 }
       ),
-    };
+    } as { error: Response };
   if (project.owner.toString() !== ctx.userId && ctx.role !== 'admin') {
     return {
       error: Response.json(
         { success: false, error: 'Forbidden' },
         { status: 403 }
       ),
-    };
+    } as { error: Response };
   }
-  return { project };
+  return { project } as { project: typeof project };
 }
 
 // GET /api/projects/[id] — full project with files
@@ -35,7 +35,7 @@ export const GET = withAuth(
     _req: NextRequest,
     ctx: AuthContext,
     params?: Record<string, string>
-  ) => {
+  ): Promise<Response> => {
     try {
       await connectDB();
       const result = await getOwnedProject(params?.id ?? '', ctx);
@@ -60,7 +60,7 @@ export const PATCH = withAuth(
     req: NextRequest,
     ctx: AuthContext,
     params?: Record<string, string>
-  ) => {
+  ): Promise<Response> => {
     try {
       const body = await req.json();
       const parsed = UpdateProjectSchema.safeParse(body);
@@ -105,7 +105,7 @@ export const DELETE = withAuth(
     _req: NextRequest,
     ctx: AuthContext,
     params?: Record<string, string>
-  ) => {
+  ): Promise<Response> => {
     try {
       await connectDB();
       const result = await getOwnedProject(params?.id ?? '', ctx);

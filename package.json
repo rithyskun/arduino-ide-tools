@@ -10,7 +10,6 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "vercel-build": "next build",
-    "postbuild": "next-sitemap",
     "db:seed": "npx ts-node -P tsconfig.json --skip-project scripts/seed.ts"
   },
   "dependencies": {
@@ -39,6 +38,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.0.1",
+    "critters": "^0.0.23",
     "eslint": "^8",
     "eslint-config-next": "14.2.0",
     "eslint-config-prettier": "^10.1.8",
