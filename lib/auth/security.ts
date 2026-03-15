@@ -17,29 +17,6 @@ export function addSecurityHeaders(response: NextResponse): NextResponse {
   // Referrer Policy
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   
-  // Content Security Policy (CSP) - Environment-aware
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  const csp = [
-    "default-src 'none';",
-    // Allow inline scripts and eval; permit jsdelivr CDN for Monaco Editor loader
-    isDevelopment
-      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;"
-      : "script-src 'self' 'unsafe-eval' https://cdn.jsdelivr.net;",
-    // Monaco web workers run as blob: URLs
-    "worker-src 'self' blob:;",
-    "connect-src 'self' ws: wss: https://cdn.jsdelivr.net;",
-    "img-src 'self' data: https:;",
-    // Allow Google Fonts and inline styles
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net;",
-    "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net;",
-    "frame-ancestors 'none';",
-    "base-uri 'self';",
-    "form-action 'self';",
-    "manifest-src 'self';",
-  ].join(' ');
-  
-  response.headers.set('Content-Security-Policy', csp);
-  
   // Comprehensive Permissions Policy - Only using valid features
   response.headers.set(
     'Permissions-Policy',
