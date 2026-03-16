@@ -50,15 +50,27 @@ export default function DemoIDE() {
 
   // ── Bootstrap guest project on first mount ─────────────────────
   useEffect(() => {
-    if (projects.length === 0) {
-      createProject('Demo Project', 'arduino-mega');
+    // SECURITY: Clear any lingering authenticated user projects from the store.
+    // This handles the case where a user logs out but the persisted Zustand store
+    // still holds their project data (e.g. direct navigation to /demo after logout
+    // before the store cleanup in DashboardClient runs).
+    const store = useIDEStore.getState();
+    const hasUserProjects = store.projects.some((p) => !p.id.startsWith('demo-'));
+    if (hasUserProjects) {
+      store.clearUserProjects();
+    }
+
+    // Now bootstrap the demo project
+    const currentProjects = useIDEStore.getState().projects;
+    const existingDemo = currentProjects.find((p) => p.id.startsWith('demo-'));
+    if (!existingDemo) {
+      createProject('Demo Project', 'arduino-mega', true);
       const saved = loadGuest();
       if (saved) {
-        const store = useIDEStore.getState();
-        const p = store.projects[0];
+        const freshStore = useIDEStore.getState();
+        const p = freshStore.projects.find((x) => x.id.startsWith('demo-'));
         if (p) {
-          // Use loadSketch method to replace all files properly
-          store.loadSketch(p.name, p.boardId, saved);
+          freshStore.loadSketch(p.name, p.boardId, saved);
         }
       }
     }

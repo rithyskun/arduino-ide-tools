@@ -13,7 +13,7 @@ import type { SimCallbacks } from './engine';
 export interface DeviceBehavior {
   deviceId: string;
   deviceType: string;
-  category: 'sensor' | 'actuator' | 'communication' | 'power' | 'storage' | 'display';
+  category: 'sensor' | 'actuator' | 'communication' | 'power' | 'storage' | 'display' | 'input';
   
   // Device initialization
   initialize(board: Board, pinMapping: Record<string, number>): void;

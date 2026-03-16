@@ -17,6 +17,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import ThemeToggle from '@/components/theme/ThemeToggle';
+import { useIDEStore } from '@/lib/store';
 import { BOARDS } from '@/lib/boards';
 import ConfirmDialog from '@/components/dialogs/ConfirmDialog';
 
@@ -35,6 +36,7 @@ interface Project {
 export default function DashboardClient() {
   const router = useRouter();
   const { data: session } = useSession();
+  const clearUserProjects = useIDEStore((s) => s.clearUserProjects);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -173,7 +175,12 @@ export default function DashboardClient() {
               </button>
               <div className="border-t border-border-subtle" />
               <button
-                onClick={() => signOut({ callbackUrl: '/login' })}
+                onClick={async () => {
+                  // Clear user project data from localStorage before signing out
+                  // to prevent it leaking into the demo page for the next visitor.
+                  clearUserProjects();
+                  await signOut({ callbackUrl: '/login' });
+                }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-accent-red hover:bg-red-900/20
                            font-mono text-xs text-left transition-colors"
               >

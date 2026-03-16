@@ -17,6 +17,8 @@
     "jsx": "react-jsx",
     "incremental": true,
     "downlevelIteration": true,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
     "plugins": [
       {
         "name": "next"

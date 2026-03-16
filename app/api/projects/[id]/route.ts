@@ -133,11 +133,11 @@ export const DELETE = withAuth(
 
       await Project.findByIdAndDelete(id);
 
-      // Fire-and-forget: decrement project count
-      User.updateOne(
+      // Decrement project count — awaited so count stays accurate
+      await User.updateOne(
         { _id: ctx.userId },
         { $inc: { 'stats.projectCount': -1 } }
-      ).exec();
+      );
 
       return NextResponse.json({ success: true, message: 'Project deleted' });
     } catch {

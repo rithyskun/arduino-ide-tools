@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
   Project,
   ProjectFile,
@@ -58,7 +58,7 @@ interface IDEState {
   activeRightTab: 'simulation' | 'hardware' | 'analysis' | 'serial' | 'devices';
 
   // Actions — projects
-  createProject: (name: string, boardId: string) => void;
+  createProject: (name: string, boardId: string, guest?: boolean) => void;
   deleteProject: (id: string) => void;
   setActiveProject: (id: string) => void;
   renameProject: (id: string, name: string) => void;
@@ -116,6 +116,9 @@ interface IDEState {
   // Actions — layout
   setPanelSizes: (sizes: Partial<PanelSizes>) => void;
 
+  // Actions — session
+  clearUserProjects: () => void;
+
   // Actions — UI
   setBoardPanelOpen: (open: boolean) => void;
   setDevicePanelOpen: (open: boolean) => void;
@@ -159,9 +162,9 @@ export const useIDEStore = create<IDEState>()(
       activeRightTab: 'hardware',
 
       // ── Projects ───────────────────────────────────────────────
-      createProject(name, boardId) {
+      createProject(name, boardId, guest = false) {
         set((s) => {
-          const id = nanoid();
+          const id = guest ? `demo-${nanoid()}` : nanoid();
           const project: Project = {
             id,
             name,
@@ -454,7 +457,7 @@ export const useIDEStore = create<IDEState>()(
           }
 
           // Parse existing devices
-          let devices = [];
+          let devices: any[] = [];
           try {
             devices = JSON.parse(devicesFile.content);
           } catch {
@@ -502,7 +505,7 @@ export const useIDEStore = create<IDEState>()(
           if (!devicesFile) return;
 
           // Parse existing devices
-          let devices = [];
+          let devices: any[] = [];
           try {
             devices = JSON.parse(devicesFile.content);
           } catch {
@@ -621,6 +624,17 @@ export const useIDEStore = create<IDEState>()(
       setActiveRightTab(tab: 'simulation' | 'hardware' | 'analysis' | 'serial' | 'devices') {
         set((s) => {
           s.activeRightTab = tab;
+        });
+      },
+
+      // ── Session ────────────────────────────────────────────────
+      clearUserProjects() {
+        set((s) => {
+          // Keep only demo projects (ids starting with 'demo-')
+          s.projects = s.projects.filter(p => p.id.startsWith('demo-'));
+          if (!s.projects.find(p => p.id === s.activeProjectId)) {
+            s.activeProjectId = s.projects[0]?.id ?? null;
+          }
         });
       },
     })),

@@ -15,7 +15,8 @@
     "logs:cleanup": "tsx scripts/cleanup-logs.ts",
     "type-check": "tsc --noEmit",
     "security:audit": "npm audit",
-    "security:check": "npm audit --audit-level moderate"
+    "security:check": "npm audit --audit-level moderate",
+    "db:indexes": "tsx scripts/ensure-indexes.ts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",

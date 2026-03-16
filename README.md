@@ -33,7 +33,7 @@
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 14 App Router |
+| Framework | Next.js 16 App Router |
 | Database | MongoDB + Mongoose |
 | Auth | NextAuth.js v4 (Credentials) + JWT + DB sessions |
 | Editor | Monaco (`@monaco-editor/react`) |

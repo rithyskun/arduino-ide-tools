@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
         tags: ['starter'],
       });
 
-      await User.updateOne({ _id: user._id }, { 'stats.projectCount': 1 });
+      await User.updateOne({ _id: user._id }, { $set: { 'stats.projectCount': 1 } });
 
       // ── Respond — client will call signIn() separately ────────────
       // Do NOT set any cookie here; NextAuth manages its own session cookie.

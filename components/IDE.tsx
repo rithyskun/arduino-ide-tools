@@ -2,7 +2,7 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { LayoutDashboard, LogOut, Cloud, CloudOff } from 'lucide-react';
+import { LayoutDashboard, LogOut, Cloud, CloudOff, Loader2, AlertCircle } from 'lucide-react';
 import { useProjectSync } from '@/lib/store/useProjectSync';
 import Toolbar from '@/components/toolbar/Toolbar';
 import FileTree from '@/components/sidebar/FileTree';
@@ -32,11 +32,11 @@ export default function IDE({ guestMode = false }: { guestMode?: boolean }) {
   const store = useIDEStore();
   const { data: session } = useSession();
   const router = useRouter();
-  const { saveNow } = useProjectSync({ guestMode });
+  const { saveNow, saveStatus } = useProjectSync({ guestMode });
   const hasUnsaved =
     store.projects
-      .find((p) => p.id === store.activeProjectId)
-      ?.files.some((f) => f.modified) ?? false;
+      .find((p: any) => p.id === store.activeProjectId)
+      ?.files.some((f: any) => f.modified) ?? false;
 
   const {
     panelSizes,
@@ -178,7 +178,7 @@ export default function IDE({ guestMode = false }: { guestMode?: boolean }) {
     clearLog();
     setSimStatus('compiling');
 
-    const project = projects.find((p) => p.id === activeProjectId);
+    const project = projects.find((p: any) => p.id === activeProjectId);
     if (!project) {
       setSimStatus('error');
       return;
@@ -191,8 +191,8 @@ export default function IDE({ guestMode = false }: { guestMode?: boolean }) {
     );
     appendLog(
       `Files: ${project.files
-        .filter((f) => !f.name.startsWith('__'))
-        .map((f) => f.name)
+        .filter((f: any) => !f.name.startsWith('__'))
+        .map((f: any) => f.name)
         .join(', ')}`,
       'info'
     );
@@ -454,20 +454,36 @@ export default function IDE({ guestMode = false }: { guestMode?: boolean }) {
           >
             {session?.user?.name ?? 'User'}
           </span>
-          {hasUnsaved && (
+          {saveStatus === 'saving' && (
+            <span
+              className="flex items-center gap-1 font-mono text-[9px]"
+              style={{ color: 'var(--fg-subtle)' }}
+            >
+              <Loader2 size={9} className="animate-spin" /> saving…
+            </span>
+          )}
+          {saveStatus === 'pending' && (
             <span
               className="flex items-center gap-1 font-mono text-[9px]"
               style={{ color: 'var(--accent-amber)' }}
             >
-              <CloudOff size={9} /> unsaved changes
+              <CloudOff size={9} /> unsaved
             </span>
           )}
-          {!hasUnsaved && store.activeProjectId && (
+          {saveStatus === 'saved' && store.activeProjectId && (
             <span
               className="flex items-center gap-1 font-mono text-[9px]"
               style={{ color: 'var(--accent-green)' }}
             >
               <Cloud size={9} /> saved
+            </span>
+          )}
+          {saveStatus === 'error' && (
+            <span
+              className="flex items-center gap-1 font-mono text-[9px]"
+              style={{ color: 'var(--accent-red)' }}
+            >
+              <AlertCircle size={9} /> save failed
             </span>
           )}
           <div className="flex-1" />
@@ -617,12 +633,12 @@ export default function IDE({ guestMode = false }: { guestMode?: boolean }) {
           {store.activeRightTab === 'analysis' && (
             <div className="flex-1 min-h-0 overflow-hidden">
               <SmartAnalysisPanel
-                project={projects.find((p) => p.id === activeProjectId)!}
+                project={projects.find((p: any) => p.id === activeProjectId)!}
                 devices={
                   (() => {
                     try {
-                      const project = projects.find((p) => p.id === activeProjectId);
-                      const devFile = project?.files.find((f) => f.name === '__devices.json');
+                      const project = projects.find((p: any) => p.id === activeProjectId);
+                      const devFile = project?.files.find((f: any) => f.name === '__devices.json');
                       return devFile ? JSON.parse(devFile.content) : [];
                     } catch {
                       return [];
@@ -696,7 +712,7 @@ export default function IDE({ guestMode = false }: { guestMode?: boolean }) {
 // ── Devices tab ───────────────────────────────────────────────────
 function DevicesTab({ onOpenCatalog }: { onOpenCatalog: () => void }) {
   const { activeProjectId, projects, removeDevice } = useIDEStore();
-  const project = projects.find((p) => p.id === activeProjectId);
+  const project = projects.find((p: any) => p.id === activeProjectId);
 
   const devices: Array<{
     instanceId: string;
@@ -704,7 +720,7 @@ function DevicesTab({ onOpenCatalog }: { onOpenCatalog: () => void }) {
     label: string;
   }> = (() => {
     try {
-      const devFile = project?.files.find((f) => f.name === '__devices.json');
+      const devFile = project?.files.find((f: any) => f.name === '__devices.json');
       return devFile ? JSON.parse(devFile.content) : [];
     } catch {
       return [];
@@ -815,10 +831,80 @@ function DevicesTab({ onOpenCatalog }: { onOpenCatalog: () => void }) {
   );
 }
 
+// ── Library stub generator ────────────────────────────────────────
+// Returns minimal C++ stubs for each detected #include so avr-gcc
+// can compile user code without the actual Arduino libraries installed.
+function getLibraryStubs(sources: string): string {
+  const inc = (h: string) => sources.includes(`#include`) && sources.includes(h);
+  const stubs: string[] = [];
+
+  if (inc('DHT.h') || inc('DHT22') || inc('dht'))
+    stubs.push(`class DHT{public:DHT(int,int){}void begin(){}float readTemperature(bool=false){return 25.0;}float readHumidity(){return 60.0;}bool isnan(float f){return false;}};`);
+
+  if (inc('Adafruit_BMP280') || inc('BMP280'))
+    stubs.push(`class Adafruit_BMP280{public:bool begin(uint8_t=0x76){return true;}float readTemperature(){return 24.5;}float readPressure(){return 101325.0;}float readAltitude(float=1013.25){return 120.0;}};`);
+
+  if (inc('HX711'))
+    stubs.push(`class HX711{public:HX711(){}void begin(int,int){}bool is_ready(){return true;}void set_scale(float=1){}void tare(){}float get_units(int=1){return 100.0;}long read(){return 100000;}void power_down(){}void power_up(){}};`);
+
+  if (inc('Adafruit_INA260') || inc('INA260'))
+    stubs.push(`class Adafruit_INA260{public:bool begin(uint8_t=0x40){return true;}float readCurrent(){return 150.0;}float readBusVoltage(){return 5000.0;}float readPower(){return 750.0;}};`);
+
+  if (inc('Servo.h') || inc('<Servo>'))
+    stubs.push(`class Servo{public:void attach(int,int=544,int=2400){}void detach(){}void write(int){}void writeMicroseconds(int){}int read(){return 90;}bool attached(){return true;}};`);
+
+  if (inc('Wire.h') || inc('<Wire>'))
+    stubs.push(`// Wire already stubbed in ARDUINO_STUBS`);
+
+  if (inc('LiquidCrystal_I2C') || inc('LiquidCrystal'))
+    stubs.push(`class LiquidCrystal_I2C{public:LiquidCrystal_I2C(int,int,int){}void begin(int,int){}void init(){}void backlight(){}void noBacklight(){}void clear(){}void setCursor(int,int){}void print(const char*){}template<typename T>void print(T){}void println(const char*){}};`);
+
+  if (inc('Adafruit_SSD1306') || inc('SSD1306'))
+    stubs.push(`#define SSD1306_SWITCHCAPVCC 2
+class Adafruit_SSD1306{public:Adafruit_SSD1306(int,int,void*,int){}bool begin(int,uint8_t,bool=true){return true;}void clearDisplay(){}void display(){}void setTextSize(int){}void setTextColor(int){}void setCursor(int,int){}void println(const char*){}template<typename T>void println(T){}void print(const char*){}template<typename T>void print(T){}void drawRect(int,int,int,int,int){}void fillRect(int,int,int,int,int){}void drawCircle(int,int,int,int){}void invertDisplay(bool){}};`);
+
+  if (inc('Adafruit_NeoPixel') || inc('NeoPixel'))
+    stubs.push(`#define NEO_GRB 6
+#define NEO_KHZ800 0x0000
+class Adafruit_NeoPixel{public:Adafruit_NeoPixel(int,int,int=NEO_GRB+NEO_KHZ800){}void begin(){}void show(){}void clear(){}void setBrightness(int){}void setPixelColor(int,uint32_t){}void setPixelColor(int,int,int,int){}uint32_t getPixelColor(int){return 0;}uint32_t Color(int r,int g,int b){return((uint32_t)r<<16)|((uint32_t)g<<8)|b;}int numPixels(){return 0;}};`);
+
+  if (inc('MPU6050') || inc('MPU_6050'))
+    stubs.push(`class MPU6050{public:MPU6050(uint8_t=0x68){}void initialize(){}bool testConnection(){return true;}void getMotion6(int16_t*ax,int16_t*ay,int16_t*az,int16_t*gx,int16_t*gy,int16_t*gz){*ax=0;*ay=0;*az=16384;*gx=0;*gy=0;*gz=0;}int16_t getAccelerationX(){return 0;}int16_t getAccelerationY(){return 0;}int16_t getAccelerationZ(){return 16384;}int16_t getRotationX(){return 0;}int16_t getRotationY(){return 0;}int16_t getRotationZ(){return 0;}int16_t getTemperature(){return 8224;}};`);
+
+  if (inc('OneWire') || inc('DallasTemperature'))
+    stubs.push(`class OneWire{public:OneWire(int){}};class DallasTemperature{public:DallasTemperature(OneWire*){}void begin(){}void requestTemperatures(){}float getTempCByIndex(int){return 24.5;}float getTempFByIndex(int){return 76.1;}int getDeviceCount(){return 1;}bool isConversionComplete(){return true;}};`);
+
+  if (inc('EEPROM'))
+    stubs.push(`class EEPROMClass{public:uint8_t read(int){return 0;}void write(int,uint8_t){}void update(int,uint8_t){}template<typename T>T& get(int,T& t){return t;}template<typename T>const T& put(int,const T& t){return t;}int length(){return 4096;}};extern EEPROMClass EEPROM;EEPROMClass EEPROM;`);
+
+  if (inc('SoftwareSerial'))
+    stubs.push(`class SoftwareSerial{public:SoftwareSerial(int,int,bool=false){}void begin(long){}bool available(){return false;}int read(){return -1;}void print(const char*){}template<typename T>void print(T){}void println(const char*){}template<typename T>void println(T){}void listen(){}};`);
+
+  if (inc('Stepper') || inc('AccelStepper'))
+    stubs.push(`class AccelStepper{public:static const int FULL4WIRE=4;AccelStepper(int,int,int,int,int){}void setMaxSpeed(float){}void setAcceleration(float){}void setSpeed(float){}void moveTo(long){}void move(long){}void run(){} void runSpeed(){}bool runToPosition(){return true;}long currentPosition(){return 0;}void stop(){}};`);
+
+  return stubs.join('\n');
+}
+
 // ── Source bundler ────────────────────────────────────────────────
+// Bundles ONLY the active project's user files — never demo/default files.
+// Detects #include directives and injects matching library stubs so
+// avr-gcc can compile without the real Arduino libraries.
 function buildBundledSource(
   files: Array<{ name: string; content: string; readonly?: boolean }>
 ): string {
+  // Strip system/internal files (prefixed with __)
+  const userFiles = files.filter((f) => !f.name.startsWith('__'));
+
+  if (userFiles.length === 0) {
+    return '// No user files found — add a .ino file to your project\n';
+  }
+
+  const headerFiles = userFiles.filter((f) => f.name.endsWith('.h') || f.name.endsWith('.hpp'));
+  const cppFiles = userFiles.filter((f) => f.name.endsWith('.cpp'));
+  const inoFiles = userFiles.filter((f) => f.name.endsWith('.ino'));
+  const allSources = userFiles.map((f) => f.content).join('\n');
+
   const ARDUINO_STUBS = `
 #include <stdint.h>
 #include <stdlib.h>
@@ -831,12 +917,32 @@ typedef bool boolean;
 #define INPUT 0
 #define OUTPUT 1
 #define INPUT_PULLUP 2
+#define INPUT_PULLDOWN 3
 #define A0 54
 #define A1 55
 #define A2 56
 #define A3 57
 #define A4 58
+#define A5 59
+#define LED_BUILTIN 13
 #define F_CPU 16000000UL
+#define PROGMEM
+#define pgm_read_byte(x) (*(x))
+#define constrain(x,a,b) ((x)<(a)?(a):((x)>(b)?(b):(x)))
+#define map(v,il,ih,ol,oh) ((v-il)*(oh-ol)/(ih-il)+ol)
+#define abs(x) ((x)>0?(x):-(x))
+#define round(x) ((long)((x)+0.5))
+#define min(a,b) ((a)<(b)?(a):(b))
+#define max(a,b) ((a)>(b)?(a):(b))
+#define PI 3.14159265358979323846
+#define TWO_PI 6.28318530717958647692
+#define DEG_TO_RAD 0.01745329251
+#define RAD_TO_DEG 57.2957795131
+typedef uint8_t  uint8_t;
+typedef uint16_t uint16_t;
+typedef uint32_t uint32_t;
+typedef int16_t  int16_t;
+typedef int32_t  int32_t;
 class HardwareSerial {
 public:
   void begin(long){}
@@ -847,62 +953,131 @@ public:
   void println(){}
   bool available(){return false;}
   int  read(){return -1;}
+  void flush(){}
+  void write(uint8_t){}
   class String_ { public: void trim(){} bool startsWith(const char*)const{return false;} int toInt()const{return 0;} float toFloat()const{return 0;} int indexOf(char)const{return -1;} };
   String_ readStringUntil(char){return{};}
+  int parseInt(){return 0;}
+  float parseFloat(){return 0;}
+  long parseInt(int){return 0;}
+  void setTimeout(long){}
 };
 extern HardwareSerial Serial; HardwareSerial Serial;
+extern HardwareSerial Serial1; HardwareSerial Serial1;
+extern HardwareSerial Serial2; HardwareSerial Serial2;
 class TwoWire {
-public: void begin(){} void setClock(long){} void beginTransmission(int){} int endTransmission(){return 0;}
-  void write(int){} int requestFrom(int,int){return 0;} int read(){return 0;}
+public:
+  void begin(){}
+  void begin(int){}
+  void setClock(long){}
+  void beginTransmission(int){}
+  int  endTransmission(bool=true){return 0;}
+  void write(int){}
+  void write(const uint8_t*,int){}
+  int  requestFrom(int,int,bool=true){return 0;}
+  int  available(){return 0;}
+  int  read(){return 0;}
+  void onReceive(void(*)(int)){}
+  void onRequest(void(*)(void)){}
 };
 extern TwoWire Wire; TwoWire Wire;
+extern TwoWire Wire1; TwoWire Wire1;
+class SPISettings{public:SPISettings(long,int,int){}};
+class SPIClass{public:void begin(){}void beginTransaction(SPISettings){}void endTransaction(){}uint8_t transfer(uint8_t){return 0;}void end(){}};
+extern SPIClass SPI; SPIClass SPI;
 class String {
 public:
-  String(){}String(const char*){}String(int){}String(float,int=2){}
-  bool startsWith(const char*)const{return false;}
+  String(){}String(const char*){}String(int){}String(float,int=2){}String(double,int=2){}
+  String(long){}String(unsigned long){}String(char){}
+  bool   startsWith(const char*)const{return false;}
+  bool   endsWith(const char*)const{return false;}
   String substring(int,int=-1)const{return{};}
-  void trim(){}
-  int toInt()const{return 0;} float toFloat()const{return 0;}
-  int indexOf(char)const{return -1;} int length()const{return 0;}
-  bool operator==(const char*)const{return false;}
+  void   trim(){}
+  int    toInt()const{return 0;}
+  float  toFloat()const{return 0;}
+  double toDouble()const{return 0;}
+  int    indexOf(char)const{return -1;}
+  int    indexOf(const char*)const{return -1;}
+  int    length()const{return 0;}
+  bool   operator==(const char*)const{return false;}
+  bool   operator==(const String&)const{return false;}
+  bool   operator!=(const char*)const{return true;}
   String operator+(const String&)const{return{};}
+  String operator+(const char*)const{return{};}
+  String& operator+=(const char*){return *this;}
+  String& operator+=(const String&){return *this;}
+  char   charAt(int)const{return 0;}
+  const  char* c_str()const{return "";}
+  void   replace(const char*,const char*){}
+  String toLowerCase()const{return{};}
+  String toUpperCase()const{return{};}
+  bool   isEmpty()const{return true;}
 };
-void pinMode(int,int){}
-void digitalWrite(int,int){}
-int  digitalRead(int){return 0;}
-int  analogRead(int){return 512;}
-void analogWrite(int,int){}
-void delay(long){}
-long millis(){return 0;}
-long micros(){return 0;}
-void noInterrupts(){}
-void interrupts(){}
-void delayMicroseconds(int){}
+void  pinMode(int,int){}
+void  digitalWrite(int,int){}
+int   digitalRead(int){return 0;}
+int   analogRead(int){return 512;}
+void  analogWrite(int,int){}
+void  analogReference(int){}
+void  delay(unsigned long){}
+long  millis(){return 0;}
+long  micros(){return 0;}
+void  noInterrupts(){}
+void  interrupts(){}
+void  delayMicroseconds(unsigned int){}
+void  attachInterrupt(int,void(*)(void),int){}
+void  detachInterrupt(int){}
+int   digitalPinToInterrupt(int){return 0;}
+#define CHANGE  1
+#define RISING  2
+#define FALLING 3
+void  yield(){}
+void  setup();
+void  loop();
+int   main(){ setup(); for(;;) loop(); return 0; }
 `;
 
-  // Filter out system files and get user files
-  const userFiles = files.filter((f) => !f.name.startsWith('__'));
-  const headerFiles = userFiles.filter((f) => f.name.endsWith('.h') || f.name.endsWith('.hpp'));
-  const cppFiles = userFiles.filter((f) => f.name.endsWith('.cpp'));
-  const inoFiles = userFiles.filter((f) => f.name.endsWith('.ino'));
+  // Strip #include lines for libraries we stub — avr-gcc won't find them
+  const STRIP_INCLUDES = [
+    'DHT.h', 'Adafruit_BMP280', 'HX711', 'Adafruit_INA260', 'Servo.h',
+    'LiquidCrystal', 'Adafruit_SSD1306', 'Adafruit_NeoPixel',
+    'MPU6050', 'OneWire', 'DallasTemperature', 'EEPROM.h',
+    'SoftwareSerial', 'AccelStepper', 'Stepper.h',
+    'DFRobot_RainfallSensor', 'HX711-CUSTOM',
+  ];
 
-  let src = '// Bundled for avr-gcc · Arduino MEGA Simulator\n';
+  function stripKnownIncludes(src: string): string {
+    return src.split('\n').map(line => {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('#include')) return line;
+      // Keep user local includes (quoted), strip library angle-bracket includes
+      // and known lib headers
+      const isLocal = trimmed.includes('"') &&
+        !STRIP_INCLUDES.some(lib => trimmed.includes(lib));
+      return isLocal ? line : `// ${line}  /* stubbed */`;
+    }).join('\n');
+  }
+
+  const libStubs = getLibraryStubs(allSources);
+
+  let src = `// ── Bundled from project files (${userFiles.map(f => f.name).join(', ')}) ──\n`;
   src += ARDUINO_STUBS + '\n';
+  if (libStubs) src += '\n// ── Library stubs (auto-detected) ──\n' + libStubs + '\n';
 
-  // Add header files first (in alphabetical order for consistency)
+  // Headers first
   headerFiles.sort((a, b) => a.name.localeCompare(b.name));
-  headerFiles.forEach((f) => {
-    src += `\n// --- ${f.name} ---\n${f.content}\n`;
+  headerFiles.forEach(f => {
+    src += `\n// ─── ${f.name} ───\n${stripKnownIncludes(f.content)}\n`;
   });
 
-  // Add C++ files
-  cppFiles.forEach((f) => {
-    src += `\n// --- ${f.name} ---\n${f.content}\n`;
+  // .cpp files
+  cppFiles.forEach(f => {
+    src += `\n// ─── ${f.name} ───\n${stripKnownIncludes(f.content)}\n`;
   });
 
-  // Add .ino files last (main sketch files)
-  inoFiles.forEach((f) => {
-    src += `\n// --- ${f.name} ---\n${f.content}\n`;
+  // .ino files last (main sketch)
+  inoFiles.forEach(f => {
+    src += `\n// ─── ${f.name} ───\n${stripKnownIncludes(f.content)}\n`;
   });
 
   return src;

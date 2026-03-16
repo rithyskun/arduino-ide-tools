@@ -229,8 +229,8 @@ export default function DeviceCatalog({ open, onClose }: DeviceCatalogProps) {
                 {/* Required pins */}
                 <div className="flex flex-wrap gap-1 mt-2">
                   {device.pins
-                    .filter((p) => p.required)
-                    .map((p) => (
+                    .filter((p: any) => p.required)
+                    .map((p: any) => (
                       <span
                         key={p.name}
                         className="font-mono text-[9px] px-1.5 py-0.5 rounded"

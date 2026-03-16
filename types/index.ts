@@ -45,6 +45,7 @@ export type DeviceCategory =
   | 'sensor'
   | 'display'
   | 'motor'
+  | 'actuator'
   | 'communication'
   | 'power'
   | 'storage'
