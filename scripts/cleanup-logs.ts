@@ -1,4 +1,4 @@
-#!/usr/bin/env ts-node
+#!/usr/bin/env tsx
 
 import { logger } from '../lib/logger';
 
@@ -14,7 +14,7 @@ async function cleanupLogs() {
 }
 
 // Run cleanup if this script is executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   cleanupLogs();
 }
 

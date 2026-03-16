@@ -2,16 +2,20 @@
   "name": "arduino-ide",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "npx eslint . --ext .js --max-warnings 10",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "vercel-build": "next build",
-    "db:seed": "npx ts-node -P tsconfig.json --skip-project scripts/seed.ts",
-    "logs:cleanup": "npx ts-node -P tsconfig.json --skip-project scripts/cleanup-logs.ts"
+    "db:seed": "tsx scripts/seed.ts",
+    "logs:cleanup": "tsx scripts/cleanup-logs.ts",
+    "type-check": "tsc --noEmit",
+    "security:audit": "npm audit",
+    "security:check": "npm audit --audit-level moderate"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
@@ -33,6 +37,7 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20",
@@ -46,6 +51,7 @@
     "postcss": "^8",
     "prettier": "^3.8.1",
     "tailwindcss": "^3.4.0",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

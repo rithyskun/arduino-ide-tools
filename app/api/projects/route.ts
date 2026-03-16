@@ -7,6 +7,12 @@ import { CreateProjectSchema } from '@/lib/validations/schemas';
 import { DEMO_PROJECT_FILES } from '@/lib/defaultFiles';
 import { badRequestResponse, serverErrorResponse } from '@/lib/auth/jwt';
 
+// FIX: Escape special regex characters to prevent ReDoS attacks.
+// Without this, a search query like ".*.*.*.*" could cause catastrophic backtracking.
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // GET /api/projects — list user's projects
 export const GET = withAuth(async (req: NextRequest, ctx) => {
   try {
@@ -21,7 +27,9 @@ export const GET = withAuth(async (req: NextRequest, ctx) => {
     const q = searchParams.get('q') ?? '';
 
     const filter: Record<string, unknown> = { owner: ctx.userId };
-    if (q) filter.name = { $regex: q, $options: 'i' };
+
+    // FIX: Escape user input before using in $regex to prevent ReDoS
+    if (q) filter.name = { $regex: escapeRegex(q), $options: 'i' };
 
     const sortMap: Record<string, Record<string, 1 | -1>> = {
       updatedAt: { updatedAt: -1 },
@@ -32,7 +40,7 @@ export const GET = withAuth(async (req: NextRequest, ctx) => {
 
     const [projects, total] = await Promise.all([
       Project.find(filter)
-        .select('-files -devices') // exclude heavy fields for list
+        .select('-files -devices') // exclude heavy fields for list view
         .sort(sortMap[sort] ?? { updatedAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
@@ -79,11 +87,13 @@ export const POST = withAuth(async (req: NextRequest, ctx) => {
       files: DEMO_PROJECT_FILES,
     });
 
-    // Increment user's project count
-    User.updateOne(
+    // FIX: Added await so errors are not silently swallowed.
+    // Previously this was fire-and-forget — if it failed, projectCount
+    // would silently drift out of sync with no error logged.
+    await User.updateOne(
       { _id: ctx.userId },
       { $inc: { 'stats.projectCount': 1 } }
-    ).exec();
+    );
 
     return NextResponse.json({ success: true, project }, { status: 201 });
   } catch {

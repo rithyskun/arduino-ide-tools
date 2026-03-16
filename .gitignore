@@ -5,3 +5,8 @@ node_modules
 .vercel
 logs/
 tmp/
+
+.storybook/
+.swc/
+coverage/
+docs/
