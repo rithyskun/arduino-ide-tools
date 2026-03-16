@@ -44,13 +44,13 @@ const deviceTemplates = [
   },
   {
     deviceType: 'ultrasonic',
-    label: 'Ultrasonic Sensor',
+    label: 'HC-SR04 Ultrasonic Sensor',
     category: 'sensor',
     icon: <Radio size={20} className="text-orange-500" />,
-    description: 'HC-SR04 ultrasonic distance sensor',
+    description: 'Ultrasonic distance sensor with echo timing',
     defaultConfig: { maxDistance: 400 },
     defaultPinMapping: { TRIG: 7, ECHO: 8 },
-    defaultValues: { distance: 0 }
+    defaultValues: { distance: 100 }
   },
   {
     deviceType: 'relay',
@@ -58,7 +58,7 @@ const deviceTemplates = [
     category: 'actuator',
     icon: <Zap size={20} className="text-yellow-500" />,
     description: 'Single channel relay module for high-power control',
-    defaultConfig: { activeLow: true },
+    defaultConfig: { activeLow: 1 },
     defaultPinMapping: { IN: 9 },
     defaultValues: { state: false }
   },
@@ -68,9 +68,79 @@ const deviceTemplates = [
     category: 'actuator',
     icon: <Activity size={20} className="text-red-500" />,
     description: 'Basic LED with PWM brightness control',
-    defaultConfig: { pwm: true },
+    defaultConfig: { pwm: 1 },
     defaultPinMapping: { PIN: 13 },
-    defaultValues: { brightness: 255 }
+    defaultValues: { brightness: 0 }
+  },
+  {
+    deviceType: 'bmp280',
+    label: 'BMP280 Pressure Sensor',
+    category: 'sensor',
+    icon: <Thermometer size={20} className="text-cyan-500" />,
+    description: 'Barometric pressure, temperature, and altitude sensor',
+    defaultConfig: { address: '0x76' },
+    defaultPinMapping: { SDA: 20, SCL: 21 },
+    defaultValues: { pressure: 1013.25, temperature: 20.0, altitude: 0 }
+  },
+  {
+    deviceType: 'servo',
+    label: 'Servo Motor',
+    category: 'actuator',
+    icon: <Settings size={20} className="text-indigo-500" />,
+    description: 'Precision servo motor with angle control',
+    defaultConfig: { minAngle: 0, maxAngle: 180, speed: 60 },
+    defaultPinMapping: { PIN: 10 },
+    defaultValues: { angle: 90 }
+  },
+  {
+    deviceType: 'buzzer',
+    label: 'Buzzer/Beep',
+    category: 'actuator',
+    icon: <Zap size={20} className="text-pink-500" />,
+    description: 'Tone generator with frequency control',
+    defaultConfig: { volume: 50, pwm: 1 },
+    defaultPinMapping: { PIN: 11 },
+    defaultValues: { frequency: 0, isPlaying: false }
+  },
+  {
+    deviceType: 'soil-moisture',
+    label: 'Soil Moisture Sensor',
+    category: 'sensor',
+    icon: <Activity size={20} className="text-green-600" />,
+    description: 'Analog soil moisture sensor with calibration',
+    defaultConfig: { threshold: 30 },
+    defaultPinMapping: { ANALOG: 0, DIGITAL: 1 },
+    defaultValues: { moisture: 50, isDry: false }
+  },
+  {
+    deviceType: 'hx711',
+    label: 'HX711 Load Cell',
+    category: 'sensor',
+    icon: <Cpu size={20} className="text-gray-500" />,
+    description: 'Weight measurement amplifier with calibration',
+    defaultConfig: { calibrationFactor: 1000 },
+    defaultPinMapping: { DT: 3, SCK: 4 },
+    defaultValues: { weight: 500, raw: 8589934 }
+  },
+  {
+    deviceType: 'ina260',
+    label: 'INA260 Power Monitor',
+    category: 'sensor',
+    icon: <Activity size={20} className="text-blue-600" />,
+    description: 'I2C voltage, current, and power monitor',
+    defaultConfig: { address: '0x40' },
+    defaultPinMapping: { SDA: 20, SCL: 21 },
+    defaultValues: { voltage: 12.1, current: 0.32, power: 3.87 }
+  },
+  {
+    deviceType: 'rainmeter',
+    label: 'Rainfall Sensor',
+    category: 'sensor',
+    icon: <Activity size={20} className="text-blue-400" />,
+    description: 'Tipping bucket rain gauge with tip counting',
+    defaultConfig: { calibration: 0.2794 },
+    defaultPinMapping: { TIP: 9 },
+    defaultValues: { tipCount: 0, rainfall: 0 }
   }
 ];
 

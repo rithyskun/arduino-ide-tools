@@ -15,6 +15,12 @@ import './hx711-behavior';
 import './ina260-behavior';
 import './rainmeter-behavior';
 import './relay-behavior';
+import './bmp280-behavior';
+import './ultrasonic-behavior';
+import './led-behavior';
+import './servo-behavior';
+import './buzzer-behavior';
+import './soil-moisture-behavior';
 
 // Export registry for easy access
 export { DeviceRegistry };
@@ -27,6 +33,12 @@ export { HX711Behavior } from './hx711-behavior';
 export { INA260Behavior } from './ina260-behavior';
 export { RainmeterBehavior } from './rainmeter-behavior';
 export { RelayBehavior } from './relay-behavior';
+export { BMP280Behavior } from './bmp280-behavior';
+export { UltrasonicBehavior } from './ultrasonic-behavior';
+export { LEDBehavior } from './led-behavior';
+export { ServoBehavior } from './servo-behavior';
+export { BuzzerBehavior } from './buzzer-behavior';
+export { SoilMoistureBehavior } from './soil-moisture-behavior';
 
 // Get list of all supported device types
 export function getSupportedDeviceTypes(): string[] {
@@ -70,6 +82,36 @@ export function getDeviceCategories(): Array<{type: string, category: string, de
       type: 'relay',
       category: 'actuator',
       description: 'Relay Module - Active-low relay with switching delays'
+    },
+    {
+      type: 'bmp280',
+      category: 'sensor',
+      description: 'BMP280 Pressure Sensor - Barometric pressure, temperature, and altitude measurements'
+    },
+    {
+      type: 'ultrasonic',
+      category: 'sensor',
+      description: 'HC-SR04 Ultrasonic Sensor - Distance measurement with realistic echo timing'
+    },
+    {
+      type: 'led',
+      category: 'actuator',
+      description: 'LED - Single or RGB LED with PWM brightness control and power monitoring'
+    },
+    {
+      type: 'servo',
+      category: 'actuator',
+      description: 'Servo Motor - Precise angle control with smooth movement and torque simulation'
+    },
+    {
+      type: 'buzzer',
+      category: 'actuator',
+      description: 'Buzzer/Beep - Tone generation with frequency control and volume adjustment'
+    },
+    {
+      type: 'soil-moisture',
+      category: 'sensor',
+      description: 'Soil Moisture Sensor - Analog and digital moisture readings with calibration'
     }
   ];
 }
